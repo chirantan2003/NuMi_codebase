@@ -114,3 +114,30 @@ def process_chat_with_ai(user_message: str, context_type: str, user_profile: dic
     )
     
     return completion.choices[0].message.content
+
+# --- CUISINE MODELS ---
+class RecommendedCuisine(BaseModel):
+    cuisine_name: str
+    explanation: str
+
+class CuisineAnalysis(BaseModel):
+    recommended_cuisines: list[RecommendedCuisine]
+
+# --- CUISINE ANALYZER ---
+def process_cuisines_with_ai(user_profile: dict):
+    prompt_content = f"""
+    Based on the following user profile, suggest the top 5 broad food cuisines (e.g., Thai, Mediterranean, Vegan) that best fit their dietary preferences, allergies, and health goals.
+    User Profile: {json.dumps(user_profile)}
+    """
+    
+    completion = client.beta.chat.completions.parse(
+        model="gpt-4o-2024-08-06", 
+        messages=[
+            {"role": "system", "content": "You are NuMi, an expert dietary AI assistant. Recommend exactly 5 cuisines. Keep explanations under 2 sentences."},
+            {"role": "user", "content": prompt_content}
+        ],
+        response_format=CuisineAnalysis,
+        temperature=0.7
+    )
+    
+    return json.loads(completion.choices[0].message.content)

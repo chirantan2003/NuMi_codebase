@@ -4,7 +4,7 @@ import json
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore
-from analyzer import process_menu_with_ai, process_feed_with_ai, process_chat_with_ai 
+from analyzer import process_menu_with_ai, process_feed_with_ai, process_chat_with_ai, process_cuisines_with_ai
 
 app = Flask(__name__)
 CORS(app) 
@@ -14,10 +14,8 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # --- GLOBAL ACTIVE USER STATE ---
-# This will hold the ID of whoever most recently created/logged into a profile
 ACTIVE_USER_ID = None 
 
-# --- NEW ENDPOINT: NEXT.JS CALLS THIS TO SET THE ACTIVE USER ---
 @app.route('/set-active-user', methods=['POST'])
 def set_active_user():
     global ACTIVE_USER_ID
@@ -41,12 +39,6 @@ def get_user_profile(user_id):
         doc = doc_ref.get()
         if doc.exists:
             profile_data = doc.to_dict()
-            
-            # --- NEW PRINT STATEMENTS HERE ---
-            print(f"\n🍽️ === LOADED PROFILE FOR USER {user_id} ===")
-            print(json.dumps(profile_data, indent=2))
-            print("==========================================\n")
-            
             return profile_data
         else:
             print(f"❌ User {user_id} not found in database.")
@@ -55,16 +47,30 @@ def get_user_profile(user_id):
         print(f"❌ Firestore Error: {e}")
         return None
 
-# --- UPDATE YOUR EXISTING ENDPOINTS TO USE ACTIVE_USER_ID ---
+# --- NEW CUISINE ENDPOINT ---
+@app.route('/cuisines', methods=['POST'])
+def get_cuisines():
+    global ACTIVE_USER_ID
+    data = request.get_json() or {}
+    user_id = data.get('userId', ACTIVE_USER_ID)
+    
+    dynamic_user_profile = get_user_profile(user_id)
+    
+    try:
+        print(f"🍽️ Fetching initial cuisines for user: {user_id}")
+        ai_recommendations = process_cuisines_with_ai(dynamic_user_profile)
+        return jsonify({"status": "success", "data": ai_recommendations}), 200
+    except Exception as e:
+        print(f"❌ Error fetching cuisines: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/save', methods=['POST'])
 def save_data():
     global ACTIVE_USER_ID
     data = request.get_json()
     if not data: return jsonify({"error": "No data received"}), 400
 
-    # Fallback to ACTIVE_USER_ID if the Chrome Extension doesn't send one
     user_id = data.get('userId', ACTIVE_USER_ID) 
-    
     dynamic_user_profile = get_user_profile(user_id)
 
     try:
@@ -90,10 +96,7 @@ def handle_chat():
 
     user_message = data['message']
     context_type = data.get('contextType', 'menu')
-    
-    # Fallback to ACTIVE_USER_ID if the Chrome Extension doesn't send one
     user_id = data.get('userId', ACTIVE_USER_ID) 
-    
     dynamic_user_profile = get_user_profile(user_id)
     
     try:

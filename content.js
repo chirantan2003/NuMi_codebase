@@ -192,8 +192,18 @@ function injectRecommendationsUI(recommendations) {
 
   const cardsHtml = recommendations.map((rec) => {
     const nameToDisplay = rec.item_name || rec.restaurant_name;
+    
+    // --- NEW: Conditionally render buttons only if it's NOT a cuisine ---
+    const buttonsHtml = rec.isCuisine ? '' : `
+        <div style="display: flex; gap: 8px;">
+            <button class="nope-btn" style="flex: 1; background: #f0f0f0; color: #555; border: none; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Nope 👎</button>
+            <button class="open-btn" style="flex: 1; background: #2b2bff; color: #fff; border: none; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Open ↗</button>
+        </div>
+    `;
+
+    // Added data-is-cuisine attribute so the click listener knows what to do
     return `
-      <div class="ai-food-card" data-name="${nameToDisplay}" style="
+      <div class="ai-food-card" data-name="${nameToDisplay}" data-is-cuisine="${!!rec.isCuisine}" style="
         background: #ffffff; color: #333; border-radius: 20px; padding: 16px;
         min-width: 260px; width: 280px; flex-shrink: 0; position: relative;
         box-shadow: 0 8px 16px rgba(0,0,0,0.08); cursor: pointer; transition: transform 0.2s;
@@ -209,10 +219,7 @@ function injectRecommendationsUI(recommendations) {
             </div>
         </div>
 
-        <div style="display: flex; gap: 8px;">
-            <button class="nope-btn" style="flex: 1; background: #f0f0f0; color: #555; border: none; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Nope 👎</button>
-            <button class="open-btn" style="flex: 1; background: #2b2bff; color: #fff; border: none; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Open ↗</button>
-        </div>
+        ${buttonsHtml}
       </div>
     `;
   }).join('');
@@ -291,6 +298,10 @@ function injectRecommendationsUI(recommendations) {
     el.addEventListener('mouseleave', () => el.style.transform = 'translateY(0)');
     
     el.addEventListener('click', (e) => {
+      // --- NEW: Prevent action if this is a cuisine card ---
+      const isCuisine = e.currentTarget.getAttribute('data-is-cuisine') === 'true';
+      if (isCuisine) return; // Do nothing, it's just informational
+        
       if(e.target.classList.contains('nope-btn')) {
           el.style.display = 'none';
           return;
@@ -298,7 +309,9 @@ function injectRecommendationsUI(recommendations) {
       
       const itemName = e.currentTarget.getAttribute('data-name');
       minimizeUI(); 
-      findAndClickDoorDashItem(itemName); 
+      if (typeof findAndClickDoorDashItem === 'function') {
+          findAndClickDoorDashItem(itemName); 
+      }
     });
   });
 
@@ -407,4 +420,51 @@ function normalizeMenu(rawJson, restaurantId) {
   }
   dig(rawJson);
   return { restaurantId: restaurantId, items: items };
+}
+
+// --- Initial Homepage Cuisine Trigger (BULLETPROOF VERSION) ---
+function triggerInitialCuisines() {
+  const path = window.location.pathname;
+  const isHomePage = path === '/' || path.startsWith('/home') || path.startsWith('/en-US');
+  
+  console.log(`🍔 [NuMi] Checking if homepage... Path is: ${path} | isHomePage: ${isHomePage}`);
+  
+  if (isHomePage) {
+      console.log("🍔 [NuMi] Homepage confirmed! Requesting cuisines...");
+      
+      // Make sure the body actually exists before we try to draw the UI
+      if (!document.body) {
+          console.log("🍔 [NuMi] Page not fully loaded yet, trying again in 500ms...");
+          setTimeout(triggerInitialCuisines, 500);
+          return;
+      }
+
+      showLoadingUI(); 
+      
+      chrome.runtime.sendMessage({ action: "getCuisines", data: {} }, (response) => {
+          console.log("🍔 [NuMi] Background script responded with:", response);
+          
+          if (response && response.data && response.data.recommended_cuisines) {
+              console.log("🍔 [NuMi] Success! Drawing cuisines on screen.");
+              const formattedCuisines = response.data.recommended_cuisines.map(c => ({
+                restaurant_name: c.cuisine_name, 
+                explanation: c.explanation,
+                isCuisine: true // <-- Add this flag
+            }));
+              currentRecommendations = formattedCuisines;
+              injectRecommendationsUI(formattedCuisines);
+          } else {
+              removeUI();
+              console.error("🍔 [NuMi] Failed or empty response from Python server.");
+          }
+      });
+  }
+}
+
+// Wait until the page is actually ready, then fire.
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", triggerInitialCuisines);
+} else {
+  // Give DoorDash's React framework 1.5s to mount
+  setTimeout(triggerInitialCuisines, 1500);
 }

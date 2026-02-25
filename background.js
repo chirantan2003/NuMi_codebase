@@ -25,6 +25,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch(error => sendResponse({ error: "Failed to reach chat server" }));
         return true; 
     }
+
+    // NEW: Listener specifically for initial cuisine recommendations
+    if (request.action === "getCuisines") {
+        fetch('http://127.0.0.1:5000/cuisines', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request.data || {})
+        })
+        .then(response => response.json())
+        .then(data => sendResponse(data))
+        .catch(error => sendResponse({ error: "Failed to reach cuisine server" }));
+        return true; 
+    }
 });
 
 chrome.action.onClicked.addListener((tab) => {
