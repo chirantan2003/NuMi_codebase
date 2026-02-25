@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Food Recommender POC",
+  "version": "0.1.0",
+  "description": "Recommends food based on visible restaurants and menus",
+  "permissions": ["scripting", "activeTab"],
+  "host_permissions": [
+    "*://*.doordash.com/*",
+    "*://*.ubereats.com/*",
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Toggle AI Recommender"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.doordash.com/*", "*://*.ubereats.com/*"],
+      "js": ["interceptor.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.doordash.com/*", "*://*.ubereats.com/*"],
+      "js": ["content.js"],
+      "world": "ISOLATED"
+    }
+  ]
+}

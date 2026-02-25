@@ -1,0 +1,4 @@
+/.env
+/.venv
+/menu_raw.json
+/menu_structured.json
