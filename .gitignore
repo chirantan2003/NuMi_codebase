@@ -2,3 +2,4 @@
 /.venv
 /menu_raw.json
 /menu_structured.json
+/serviceAccountKey.json
