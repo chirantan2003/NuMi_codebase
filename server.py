@@ -85,6 +85,9 @@ def save_data():
             ai_recommendations = process_menu_with_ai(raw_file_path, dynamic_user_profile)
             return jsonify({"status": "success", "data": ai_recommendations}), 200
     except Exception as e:
+        import traceback
+        with open("error_log.txt", "w") as f: f.write(traceback.format_exc())
+        print("💥 ERROR IN /save:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
@@ -106,4 +109,4 @@ def handle_chat():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
