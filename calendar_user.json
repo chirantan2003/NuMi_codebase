@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "week": "2026-04-13 to 2026-04-20",
+  "weekStart": "2026-04-13T04:00:00.000Z",
+  "weekEnd": "2026-04-20T03:59:59.999Z",
+  "events": [
+    {
+      "title": "Very important meeting",
+      "description": "Changes made to the title, description, or attachments will not be saved. To make edits, please go to: https://tasks.google.com/task/RDhFdGzuyS4pYORj",
+      "location": null,
+      "start": "2026-04-16T19:30:00-04:00",
+      "end": "2026-04-16T20:30:00-04:00",
+      "date": "2026-04-16"
+    },
+    {
+      "title": "meeting A",
+      "description": "Changes made to the title, description, or attachments will not be saved. To make edits, please go to: https://tasks.google.com/task/QdjrxZvLr7O2XlMu",
+      "location": null,
+      "start": "2026-04-16T22:30:00-04:00",
+      "end": "2026-04-16T23:30:00-04:00",
+      "date": "2026-04-16"
+    },
+    {
+      "title": "Event 1",
+      "description": null,
+      "location": null,
+      "start": "2026-04-17T15:30:00-04:00",
+      "end": "2026-04-17T17:30:00-04:00",
+      "date": "2026-04-17"
+    },
+    {
+      "title": "Meeting B",
+      "description": "Changes made to the title, description, or attachments will not be saved. To make edits, please go to: https://tasks.google.com/task/XnzD6Fq2_ebgtV6W",
+      "location": null,
+      "start": "2026-04-17T18:30:00-04:00",
+      "end": "2026-04-17T19:30:00-04:00",
+      "date": "2026-04-17"
+    }
+  ],
+  "workload_score": 23,
+  "total_events": 4,
+  "fetchedAt": "2026-04-16T23:03:31.062Z"
+}
