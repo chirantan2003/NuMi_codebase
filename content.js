@@ -1,8 +1,8 @@
 const UI_ID = "__food_recommender_panel";
-let processedMenuCounts = new Map(); 
+let processedMenuCounts = new Map();
 let currentRecommendations = null;
 
-let feedStoresMap = new Map(); 
+let feedStoresMap = new Map();
 let feedAiTriggered = false;
 
 // Debouncer variables to prevent double-firing
@@ -11,16 +11,16 @@ let pendingPayloadToSend = null;
 
 // --- Extension Icon Listener ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "toggleUI") {
-        const panel = document.getElementById(UI_ID);
-        if (panel) {
-            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
-        } else if (currentRecommendations) {
-            injectRecommendationsUI(currentRecommendations);
-        } else {
-            alert("No AI recommendations available yet. Open a menu or the home feed to scan!");
-        }
+  if (request.action === "toggleUI") {
+    const panel = document.getElementById(UI_ID);
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    } else if (currentRecommendations) {
+      injectRecommendationsUI(currentRecommendations);
+    } else {
+      alert("No AI recommendations available yet. Open a menu or the home feed to scan!");
     }
+  }
 });
 
 // --- DoorDash Page Listener (With Debouncer) ---
@@ -29,22 +29,22 @@ window.addEventListener('message', (event) => {
 
   // BRANCH 1: HANDLE MENU DATA
   if (event.data.type === 'DD_MENU_INTERCEPTED') {
-    feedAiTriggered = false; 
+    feedAiTriggered = false;
     const restaurantId = (event.data.url || window.location.href).split('/store/')[1]?.split('/')[0] || "unknown";
     if (restaurantId === "unknown") return;
 
     const cleanMenu = normalizeMenu(event.data.payload, restaurantId);
     const prevCount = processedMenuCounts.get(restaurantId) || 0;
-    
+
     if (cleanMenu && cleanMenu.items.length > prevCount) {
-        processedMenuCounts.set(restaurantId, cleanMenu.items.length);
-        
-        pendingPayloadToSend = cleanMenu;
-        clearTimeout(interceptDebounceTimer);
-        interceptDebounceTimer = setTimeout(() => {
-            console.log(`[Food Recommender] Menu settled! (${pendingPayloadToSend.items.length} items). Sending to AI...`);
-            triggerBackend(pendingPayloadToSend);
-        }, 1200);
+      processedMenuCounts.set(restaurantId, cleanMenu.items.length);
+
+      pendingPayloadToSend = cleanMenu;
+      clearTimeout(interceptDebounceTimer);
+      interceptDebounceTimer = setTimeout(() => {
+        console.log(`[Food Recommender] Menu settled! (${pendingPayloadToSend.items.length} items). Sending to AI...`);
+        triggerBackend(pendingPayloadToSend);
+      }, 1200);
     }
   }
 
@@ -52,36 +52,36 @@ window.addEventListener('message', (event) => {
   if (event.data.type === 'DD_FEED_INTERCEPTED') {
     const cleanFeed = normalizeFeed(event.data.payload);
     if (cleanFeed && cleanFeed.stores.length > 0) {
-        cleanFeed.stores.forEach(store => feedStoresMap.set(store.name, store));
-        
-        if (feedStoresMap.size >= 5 && !feedAiTriggered) {
-            pendingPayloadToSend = { dataType: 'feed', stores: Array.from(feedStoresMap.values()) };
-            
-            clearTimeout(interceptDebounceTimer);
-            interceptDebounceTimer = setTimeout(() => {
-                feedAiTriggered = true;
-                console.log(`[Food Recommender] Feed settled! (${pendingPayloadToSend.stores.length} restaurants). Sending to AI...`);
-                triggerBackend(pendingPayloadToSend);
-            }, 1200);
-        }
+      cleanFeed.stores.forEach(store => feedStoresMap.set(store.name, store));
+
+      if (feedStoresMap.size >= 5 && !feedAiTriggered) {
+        pendingPayloadToSend = { dataType: 'feed', stores: Array.from(feedStoresMap.values()) };
+
+        clearTimeout(interceptDebounceTimer);
+        interceptDebounceTimer = setTimeout(() => {
+          feedAiTriggered = true;
+          console.log(`[Food Recommender] Feed settled! (${pendingPayloadToSend.stores.length} restaurants). Sending to AI...`);
+          triggerBackend(pendingPayloadToSend);
+        }, 1200);
+      }
     }
   }
 });
 
 function triggerBackend(dataPayload) {
-  showLoadingUI(); 
+  showLoadingUI();
   chrome.runtime.sendMessage(
     { action: "sendToLocalServer", data: dataPayload },
     (response) => {
-        if (response && response.data) {
-            currentRecommendations = response.data.recommended_items || response.data.recommended_restaurants;
-            if (currentRecommendations) {
-                injectRecommendationsUI(currentRecommendations);
-                return;
-            }
+      if (response && response.data) {
+        currentRecommendations = response.data.recommended_items || response.data.recommended_restaurants;
+        if (currentRecommendations) {
+          injectRecommendationsUI(currentRecommendations);
+          return;
         }
-        removeUI();
-        console.error("Failed to get recommendations", response);
+      }
+      removeUI();
+      console.error("Failed to get recommendations", response);
     }
   );
 }
@@ -89,15 +89,15 @@ function triggerBackend(dataPayload) {
 // --- DoorDash "Ghost Click" Logic (With Manual Scroll Cancel) ---
 function findAndClickDoorDashItem(itemName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  
+
   let scrollAttempts = 0;
-  const maxAttempts = 50; 
-  const scrollStep = window.innerHeight * 0.5; 
+  const maxAttempts = 50;
+  const scrollStep = window.innerHeight * 0.5;
   let userIntervened = false;
 
   const interventionHandler = (e) => {
-      if (e.type === 'wheel' || e.type === 'touchmove') userIntervened = true;
-      if (e.type === 'keydown' && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Space', ' '].includes(e.key)) userIntervened = true;
+    if (e.type === 'wheel' || e.type === 'touchmove') userIntervened = true;
+    if (e.type === 'keydown' && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Space', ' '].includes(e.key)) userIntervened = true;
   };
 
   window.addEventListener('wheel', interventionHandler, { passive: true });
@@ -105,50 +105,50 @@ function findAndClickDoorDashItem(itemName) {
   window.addEventListener('keydown', interventionHandler, { passive: true });
 
   const cleanupListeners = () => {
-      window.removeEventListener('wheel', interventionHandler);
-      window.removeEventListener('touchmove', interventionHandler);
-      window.removeEventListener('keydown', interventionHandler);
+    window.removeEventListener('wheel', interventionHandler);
+    window.removeEventListener('touchmove', interventionHandler);
+    window.removeEventListener('keydown', interventionHandler);
   };
 
   setTimeout(() => {
-      function searchAndScroll() {
-        if (userIntervened) {
-            console.log(`[Food Recommender] Auto-scroll canceled by user.`);
-            cleanupListeners();
-            return; 
-        }
-
-        const elements = Array.from(document.querySelectorAll('*')).filter(el => {
-          if (el.closest(`#${UI_ID}`)) return false; 
-          return el.children.length === 0 && el.textContent.trim().toLowerCase() === itemName.toLowerCase();
-        });
-
-        if (elements.length > 0) {
-          const targetEl = elements[0];
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-          setTimeout(() => {
-            const clickableCard = targetEl.closest('button, a, [role="button"], [cursor="pointer"], [data-anchor-id]') || targetEl;
-            const clickEvent = new MouseEvent('click', { view: window, bubbles: true, cancelable: true, buttons: 1 });
-            clickableCard.dispatchEvent(clickEvent);
-          }, 850); 
-          cleanupListeners();
-          return; 
-        }
-
-        const isAtBottom = Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 10;
-        if (isAtBottom || scrollAttempts >= maxAttempts) {
-            alert(`Could not find "${itemName}". It might be hidden or further down the page.`);
-            cleanupListeners();
-            return; 
-        }
-
-        window.scrollBy({ top: scrollStep, left: 0, behavior: 'smooth' });
-        scrollAttempts++;
-        setTimeout(searchAndScroll, 600); 
+    function searchAndScroll() {
+      if (userIntervened) {
+        console.log(`[Food Recommender] Auto-scroll canceled by user.`);
+        cleanupListeners();
+        return;
       }
-      searchAndScroll();
-  }, 500); 
+
+      const elements = Array.from(document.querySelectorAll('*')).filter(el => {
+        if (el.closest(`#${UI_ID}`)) return false;
+        return el.children.length === 0 && el.textContent.trim().toLowerCase() === itemName.toLowerCase();
+      });
+
+      if (elements.length > 0) {
+        const targetEl = elements[0];
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        setTimeout(() => {
+          const clickableCard = targetEl.closest('button, a, [role="button"], [cursor="pointer"], [data-anchor-id]') || targetEl;
+          const clickEvent = new MouseEvent('click', { view: window, bubbles: true, cancelable: true, buttons: 1 });
+          clickableCard.dispatchEvent(clickEvent);
+        }, 850);
+        cleanupListeners();
+        return;
+      }
+
+      const isAtBottom = Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 10;
+      if (isAtBottom || scrollAttempts >= maxAttempts) {
+        alert(`Could not find "${itemName}". It might be hidden or further down the page.`);
+        cleanupListeners();
+        return;
+      }
+
+      window.scrollBy({ top: scrollStep, left: 0, behavior: 'smooth' });
+      scrollAttempts++;
+      setTimeout(searchAndScroll, 600);
+    }
+    searchAndScroll();
+  }, 500);
 }
 
 // --- UI Logic (Reverted to the compact, unified design) ---
@@ -176,7 +176,7 @@ function injectRecommendationsUI(recommendations) {
   removeUI();
   const panel = document.createElement("div");
   panel.id = UI_ID;
-  
+
   panel.style.cssText = `
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     width: 90%; max-width: 800px; max-height: 85vh;
@@ -192,7 +192,7 @@ function injectRecommendationsUI(recommendations) {
 
   const cardsHtml = recommendations.map((rec) => {
     const nameToDisplay = rec.item_name || rec.restaurant_name;
-    
+
     // --- NEW: Conditionally render buttons only if it's NOT a cuisine ---
     const buttonsHtml = rec.isCuisine ? '' : `
         <div style="display: flex; gap: 8px;">
@@ -202,8 +202,10 @@ function injectRecommendationsUI(recommendations) {
     `;
 
     // Added data-is-cuisine attribute so the click listener knows what to do
+    // Store raw explanation in a data attribute for the hover popup
+    const safeExplanation = rec.explanation.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     return `
-      <div class="ai-food-card" data-name="${nameToDisplay}" data-is-cuisine="${!!rec.isCuisine}" style="
+      <div class="ai-food-card" data-name="${nameToDisplay}" data-is-cuisine="${!!rec.isCuisine}" data-explanation="${safeExplanation}" style="
         background: #ffffff; color: #333; border-radius: 20px; padding: 16px;
         min-width: 260px; width: 280px; flex-shrink: 0; position: relative;
         box-shadow: 0 8px 16px rgba(0,0,0,0.08); cursor: pointer; transition: transform 0.2s;
@@ -214,7 +216,7 @@ function injectRecommendationsUI(recommendations) {
             <div style="font-size: 11px; color: #777; margin-bottom: 12px;">Highly Recommended</div>
             
             <div style="font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 4px;">Why this choice?</div>
-            <div style="font-size: 12px; color: #444; line-height: 1.4; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
+            <div class="card-explanation" style="font-size: 12px; color: #444; line-height: 1.4; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
               ${rec.explanation}
             </div>
         </div>
@@ -231,6 +233,33 @@ function injectRecommendationsUI(recommendations) {
         .numi-cards-slider::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 8px; }
         .numi-cards-slider::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.4); border-radius: 8px; }
         .numi-cards-slider::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.6); }
+        .numi-modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            z-index: 1000000; display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.25s ease;
+        }
+        .numi-modal-backdrop.visible { opacity: 1; }
+        .numi-modal-card {
+            background: rgba(32, 32, 32, 0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 20px;
+            padding: 28px 32px; max-width: 420px; width: 90%; max-height: 70vh; overflow-y: auto;
+            color: #eee; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+            transform: scale(0.92); transition: transform 0.25s ease;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .numi-modal-backdrop.visible .numi-modal-card { transform: scale(1); }
+        .numi-modal-card::-webkit-scrollbar { width: 5px; }
+        .numi-modal-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+        .numi-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #fff; }
+        .numi-modal-subtitle { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 10px; }
+        .numi-modal-text { font-size: 14px; line-height: 1.6; color: #ddd; }
+        .numi-modal-close {
+            position: absolute; top: 14px; right: 18px; background: rgba(255,255,255,0.1); border: none;
+            color: #aaa; width: 28px; height: 28px; border-radius: 50%; font-size: 14px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+        }
+        .numi-modal-close:hover { background: rgba(255,255,255,0.2); color: #fff; }
     </style>
 
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
@@ -273,44 +302,81 @@ function injectRecommendationsUI(recommendations) {
   const minBtn = document.getElementById('minimize_btn');
 
   function minimizeUI() {
-      bodyEl.style.display = 'none';
-      chatBarEl.style.display = 'none';
-      minBtn.innerText = '−';
-      panel.style.width = '300px'; 
+    bodyEl.style.display = 'none';
+    chatBarEl.style.display = 'none';
+    minBtn.innerText = '−';
+    panel.style.width = '300px';
   }
 
   function maximizeUI() {
-      bodyEl.style.display = 'flex';
-      chatBarEl.style.display = 'flex';
-      minBtn.innerText = '−';
-      panel.style.width = '90%'; 
+    bodyEl.style.display = 'flex';
+    chatBarEl.style.display = 'flex';
+    minBtn.innerText = '−';
+    panel.style.width = '90%';
   }
 
   document.getElementById('close_btn').addEventListener('click', removeUI);
   minBtn.addEventListener('click', () => {
-      if (bodyEl.style.display === 'none') maximizeUI();
-      else minimizeUI();
+    if (bodyEl.style.display === 'none') maximizeUI();
+    else minimizeUI();
   });
 
   // --- Card Action Logic ---
+  // --- Centered modal helper ---
+  function showExplanationModal(name, explanation) {
+    // Remove any existing modal
+    const old = document.querySelector('.numi-modal-backdrop');
+    if (old) old.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'numi-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="numi-modal-card" style="position: relative;">
+        <button class="numi-modal-close">✕</button>
+        <div class="numi-modal-title">${name}</div>
+        <div class="numi-modal-subtitle">Why this choice?</div>
+        <div class="numi-modal-text">${explanation}</div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+
+    // Fade in
+    requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('visible')));
+
+    // Close handlers
+    const dismiss = () => {
+      backdrop.classList.remove('visible');
+      setTimeout(() => backdrop.remove(), 250);
+    };
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) dismiss(); });
+    backdrop.querySelector('.numi-modal-close').addEventListener('click', dismiss);
+  }
+
   document.querySelectorAll('.ai-food-card').forEach(el => {
     el.addEventListener('mouseenter', () => el.style.transform = 'translateY(-6px)');
     el.addEventListener('mouseleave', () => el.style.transform = 'translateY(0)');
-    
+
     el.addEventListener('click', (e) => {
-      // --- NEW: Prevent action if this is a cuisine card ---
       const isCuisine = e.currentTarget.getAttribute('data-is-cuisine') === 'true';
-      if (isCuisine) return; // Do nothing, it's just informational
-        
-      if(e.target.classList.contains('nope-btn')) {
-          el.style.display = 'none';
-          return;
+      const clickedExplanation = e.target.closest('.card-explanation') || e.target.closest('[style*="Why this choice"]');
+
+      // Show modal if it's a cuisine card or if user clicked the explanation text
+      if (isCuisine || clickedExplanation) {
+        const name = e.currentTarget.getAttribute('data-name');
+        const explanation = e.currentTarget.getAttribute('data-explanation');
+        if (explanation) showExplanationModal(name, explanation);
+        return;
       }
-      
+
+      if (e.target.classList.contains('nope-btn')) {
+        el.style.display = 'none';
+        return;
+      }
+
       const itemName = e.currentTarget.getAttribute('data-name');
-      minimizeUI(); 
+      minimizeUI();
       if (typeof findAndClickDoorDashItem === 'function') {
-          findAndClickDoorDashItem(itemName); 
+        findAndClickDoorDashItem(itemName);
       }
     });
   });
@@ -321,51 +387,51 @@ function injectRecommendationsUI(recommendations) {
   const chatHistory = document.getElementById('chat_history');
 
   function handleChatSend() {
-      const msg = chatInput.value.trim();
-      if (!msg) return;
+    const msg = chatInput.value.trim();
+    if (!msg) return;
 
-      chatHistory.style.display = 'flex'; 
-      appendChatMessage('You', msg, '#ffffff', 'rgba(255,255,255,0.1)');
-      chatInput.value = '';
+    chatHistory.style.display = 'flex';
+    appendChatMessage('You', msg, '#ffffff', 'rgba(255,255,255,0.1)');
+    chatInput.value = '';
 
-      const loadingId = appendChatMessage('NuMi', 'Thinking...', '#aaaaaa', 'transparent');
-      setTimeout(() => bodyEl.scrollTop = bodyEl.scrollHeight, 50);
+    const loadingId = appendChatMessage('NuMi', 'Thinking...', '#aaaaaa', 'transparent');
+    setTimeout(() => bodyEl.scrollTop = bodyEl.scrollHeight, 50);
 
-      chrome.runtime.sendMessage(
-          { action: "sendChatMessage", data: { message: msg, contextType: contextType.toLowerCase() } },
-          (response) => {
-              const loadingEl = document.getElementById(loadingId);
-              if (loadingEl) loadingEl.remove();
+    chrome.runtime.sendMessage(
+      { action: "sendChatMessage", data: { message: msg, contextType: contextType.toLowerCase() } },
+      (response) => {
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
 
-              if (response && response.reply) {
-                  appendChatMessage('NuMi', response.reply, '#fff', 'rgba(43, 43, 255, 0.2)');
-              } else {
-                  appendChatMessage('Error', 'Failed to reach AI.', '#ff4444', 'transparent');
-              }
-              setTimeout(() => bodyEl.scrollTop = bodyEl.scrollHeight, 50);
-          }
-      );
+        if (response && response.reply) {
+          appendChatMessage('NuMi', response.reply, '#fff', 'rgba(43, 43, 255, 0.2)');
+        } else {
+          appendChatMessage('Error', 'Failed to reach AI.', '#ff4444', 'transparent');
+        }
+        setTimeout(() => bodyEl.scrollTop = bodyEl.scrollHeight, 50);
+      }
+    );
   }
 
   chatSendBtn.addEventListener('click', handleChatSend);
   chatInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') handleChatSend();
+    if (e.key === 'Enter') handleChatSend();
   });
 }
 
 function appendChatMessage(sender, text, textColor, bgColor) {
-    const history = document.getElementById('chat_history');
-    const div = document.createElement('div');
-    const uniqueId = 'msg_' + Date.now();
-    div.id = uniqueId;
-    div.style.cssText = `background: ${bgColor}; padding: 10px 14px; border-radius: 12px; line-height: 1.4; font-size: 13px; color: ${textColor}; align-self: ${sender === 'You' ? 'flex-end' : 'flex-start'}; max-width: 85%;`;
-    
-    const prefix = sender === 'NuMi' ? `<strong style="color: #00E676;">✨ NuMi:</strong> ` : '';
-    div.innerHTML = `${prefix}<span>${text}</span>`;
-    
-    history.appendChild(div);
-    history.scrollTop = history.scrollHeight;
-    return uniqueId;
+  const history = document.getElementById('chat_history');
+  const div = document.createElement('div');
+  const uniqueId = 'msg_' + Date.now();
+  div.id = uniqueId;
+  div.style.cssText = `background: ${bgColor}; padding: 10px 14px; border-radius: 12px; line-height: 1.4; font-size: 13px; color: ${textColor}; align-self: ${sender === 'You' ? 'flex-end' : 'flex-start'}; max-width: 85%;`;
+
+  const prefix = sender === 'NuMi' ? `<strong style="color: #00E676;">✨ NuMi:</strong> ` : '';
+  div.innerHTML = `${prefix}<span>${text}</span>`;
+
+  history.appendChild(div);
+  history.scrollTop = history.scrollHeight;
+  return uniqueId;
 }
 
 function removeUI() {
@@ -403,7 +469,7 @@ function normalizeMenu(rawJson, restaurantId) {
     if (!obj || typeof obj !== 'object') return;
     const hasName = typeof obj.name === 'string';
     const hasPrice = obj.price != null || obj.displayPrice != null;
-    const isNotModifier = !obj.minChoiceOptions; 
+    const isNotModifier = !obj.minChoiceOptions;
     if (hasName && hasPrice && isNotModifier) {
       const name = obj.name.trim();
       if (name.length > 0 && !seenNames.has(name)) {
@@ -426,38 +492,38 @@ function normalizeMenu(rawJson, restaurantId) {
 function triggerInitialCuisines() {
   const path = window.location.pathname;
   const isHomePage = path === '/' || path.startsWith('/home') || path.startsWith('/en-US');
-  
-  console.log(`🍔 [NuMi] Checking if homepage... Path is: ${path} | isHomePage: ${isHomePage}`);
-  
-  if (isHomePage) {
-      console.log("🍔 [NuMi] Homepage confirmed! Requesting cuisines...");
-      
-      // Make sure the body actually exists before we try to draw the UI
-      if (!document.body) {
-          console.log("🍔 [NuMi] Page not fully loaded yet, trying again in 500ms...");
-          setTimeout(triggerInitialCuisines, 500);
-          return;
-      }
 
-      showLoadingUI(); 
-      
-      chrome.runtime.sendMessage({ action: "getCuisines", data: {} }, (response) => {
-          console.log("🍔 [NuMi] Background script responded with:", response);
-          
-          if (response && response.data && response.data.recommended_cuisines) {
-              console.log("🍔 [NuMi] Success! Drawing cuisines on screen.");
-              const formattedCuisines = response.data.recommended_cuisines.map(c => ({
-                restaurant_name: c.cuisine_name, 
-                explanation: c.explanation,
-                isCuisine: true // <-- Add this flag
-            }));
-              currentRecommendations = formattedCuisines;
-              injectRecommendationsUI(formattedCuisines);
-          } else {
-              removeUI();
-              console.error("🍔 [NuMi] Failed or empty response from Python server.");
-          }
-      });
+  console.log(`🍔 [NuMi] Checking if homepage... Path is: ${path} | isHomePage: ${isHomePage}`);
+
+  if (isHomePage) {
+    console.log("🍔 [NuMi] Homepage confirmed! Requesting cuisines...");
+
+    // Make sure the body actually exists before we try to draw the UI
+    if (!document.body) {
+      console.log("🍔 [NuMi] Page not fully loaded yet, trying again in 500ms...");
+      setTimeout(triggerInitialCuisines, 500);
+      return;
+    }
+
+    showLoadingUI();
+
+    chrome.runtime.sendMessage({ action: "getCuisines", data: {} }, (response) => {
+      console.log("🍔 [NuMi] Background script responded with:", response);
+
+      if (response && response.data && response.data.recommended_cuisines) {
+        console.log("🍔 [NuMi] Success! Drawing cuisines on screen.");
+        const formattedCuisines = response.data.recommended_cuisines.map(c => ({
+          restaurant_name: c.cuisine_name,
+          explanation: c.explanation,
+          isCuisine: true // <-- Add this flag
+        }));
+        currentRecommendations = formattedCuisines;
+        injectRecommendationsUI(formattedCuisines);
+      } else {
+        removeUI();
+        console.error("🍔 [NuMi] Failed or empty response from Python server.");
+      }
+    });
   }
 }
 
