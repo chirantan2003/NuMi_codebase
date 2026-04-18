@@ -6,7 +6,16 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv()
-client = OpenAI()
+
+# Lazy client — only creates OpenAI client on first API call
+# so the server can boot even without OPENAI_API_KEY (health check works)
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = OpenAI()
+    return _client
 
 # ──────────────────────────────────────────────
 #  SCHEDULE-AWARENESS HELPER
@@ -123,7 +132,7 @@ def process_menu_with_ai(input_file_path: str, user_profile: dict, calendar_data
     Menu Data: {json.dumps(items_to_analyze)}
     """
 
-    completion = client.beta.chat.completions.parse(
+    completion = _get_client().beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
             {"role": "system", "content": f"You are a dietary nutritionist.\n\n{_SCHEDULE_SYSTEM}"},
@@ -154,7 +163,7 @@ def process_feed_with_ai(input_file_path: str, user_profile: dict, calendar_data
     Visible Restaurants: {json.dumps(stores_to_analyze)}
     """
 
-    completion = client.beta.chat.completions.parse(
+    completion = _get_client().beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
             {"role": "system", "content": f"You are a dietary nutritionist analyzing restaurant options.\n\n{_SCHEDULE_SYSTEM}"},
@@ -198,7 +207,7 @@ def process_chat_with_ai(user_message: str, context_type: str, user_profile: dic
     User's Message: {user_message}
     """
 
-    completion = client.chat.completions.create(
+    completion = _get_client().chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": f"You are a helpful dietary assistant. Keep your answers concise, plain text, and conversational.\n\n{_SCHEDULE_SYSTEM}"},
@@ -225,7 +234,7 @@ def process_cuisines_with_ai(user_profile: dict, calendar_data=None):
     User Profile: {json.dumps(user_profile)}
     """
 
-    completion = client.beta.chat.completions.parse(
+    completion = _get_client().beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
             {"role": "system", "content": f"You are NuMi, an expert dietary AI assistant. Recommend exactly 5 cuisines. Keep explanations under 2 sentences.\n\n{_SCHEDULE_SYSTEM}"},
