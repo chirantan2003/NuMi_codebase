@@ -1,5 +1,24 @@
-/.env
-/.venv
-/menu_raw.json
-/menu_structured.json
-/serviceAccountKey.json
+# Secrets — NEVER commit these
+.env
+serviceAccountKey.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Temporary data files
+menu_raw.json
+feed_raw.json
+calendar_user.json
+error_log.txt
+menu_structured.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

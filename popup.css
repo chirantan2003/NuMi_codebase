@@ -1,0 +1,242 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #fefbef;
+  width: 320px;
+  min-height: 200px;
+}
+
+.popup-container {
+  padding: 16px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* --- Header --- */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logo-icon {
+  background: #506634;
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.logo-text {
+  font-size: 18px;
+  font-weight: 900;
+  color: #506634;
+  letter-spacing: -0.5px;
+}
+
+.version {
+  font-size: 10px;
+  font-weight: 600;
+  color: #aaa;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* --- State Panels --- */
+.state-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.icon-signup {
+  background: #f2f7ec;
+  border: 1.5px solid #d4e1bc;
+}
+
+.icon-success {
+  background: #dcfce7;
+  border: 1.5px solid #bbf7d0;
+}
+
+.panel-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.panel-subtitle {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.4;
+  max-width: 260px;
+  font-weight: 500;
+}
+
+/* --- Buttons --- */
+.btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+  border: none;
+  margin-top: 4px;
+}
+
+.btn-primary {
+  background: #506634;
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #405229;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(80,102,52,0.3);
+}
+
+.btn-doordash {
+  background: #eb1700;
+  color: #fff;
+}
+.btn-doordash:hover {
+  background: #d11500;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(235,23,0,0.3);
+}
+
+.btn-reset {
+  background: transparent;
+  color: #999;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px;
+  margin-top: 0;
+}
+.btn-reset:hover {
+  color: #e74c3c;
+  background: rgba(231,76,60,0.06);
+}
+
+.hint {
+  font-size: 10px;
+  color: #bbb;
+  font-weight: 500;
+}
+
+/* --- Profile Card --- */
+.profile-card {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin: 4px 0 8px;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+}
+
+.profile-row + .profile-row {
+  border-top: 1px solid #f5f5f5;
+}
+
+.profile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.profile-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-id-value {
+  font-family: "SF Mono", "Consolas", monospace;
+  font-size: 10px;
+  color: #506634;
+}
+
+/* --- Footer --- */
+.footer {
+  text-align: center;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0,0,0,0.04);
+}
+
+.footer-link {
+  font-size: 10px;
+  color: #bbb;
+  text-decoration: none;
+  font-weight: 500;
+}
+.footer-link:hover {
+  color: #888;
+  text-decoration: underline;
+}
+
+/* --- Spinner --- */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #506634;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.status-text {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 500;
+}

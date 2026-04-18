@@ -1,32 +1,38 @@
 {
   "manifest_version": 3,
-  "name": "Food Recommender POC",
-  "version": "0.1.0",
-  "description": "Recommends food based on visible restaurants and menus",
-  "permissions": ["scripting", "activeTab"],
+  "name": "NuMi — Smart Food Assistant",
+  "version": "1.0.0",
+  "description": "AI-powered food recommendations on DoorDash, personalized to your dietary needs, health goals, and schedule.",
+  "permissions": ["scripting", "activeTab", "storage"],
   "host_permissions": [
     "*://*.doordash.com/*",
-    "*://*.ubereats.com/*",
-    "http://127.0.0.1:5001/*",
-    "http://localhost:5001/*"
+    "https://numi-signup.vercel.app/*"
   ],
+
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Toggle AI Recommender"
+    "default_title": "NuMi — Smart Food Assistant",
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {
-      "matches": ["*://*.doordash.com/*", "*://*.ubereats.com/*"],
+      "matches": ["*://*.doordash.com/*"],
       "js": ["interceptor.js"],
       "world": "MAIN",
       "run_at": "document_start"
     },
     {
-      "matches": ["*://*.doordash.com/*", "*://*.ubereats.com/*"],
+      "matches": ["*://*.doordash.com/*"],
       "js": ["content.js"],
       "world": "ISOLATED"
     }
-  ]
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://numi-signup.vercel.app/*",
+      "http://localhost:3000/*"
+    ]
+  }
 }

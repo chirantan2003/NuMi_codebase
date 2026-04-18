@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NuMi</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="header">
+      <div class="logo">
+        <span class="logo-icon">★</span>
+        <span class="logo-text">NuMi</span>
+      </div>
+      <span class="version">v1.0</span>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="state-panel">
+      <div class="spinner"></div>
+      <p class="status-text">Loading...</p>
+    </div>
+
+    <!-- Not Signed Up State -->
+    <div id="signup-state" class="state-panel" style="display: none;">
+      <div class="icon-circle icon-signup">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#506634" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"></circle>
+          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"></path>
+        </svg>
+      </div>
+      <h2 class="panel-title">Welcome to NuMi</h2>
+      <p class="panel-subtitle">Create your profile to get personalized AI food recommendations on DoorDash.</p>
+      <a id="signup-link" href="https://numi-signup.vercel.app" target="_blank" class="btn btn-primary">
+        Get Started →
+      </a>
+      <div class="hint">Takes about 2 minutes</div>
+    </div>
+
+    <!-- Signed In State -->
+    <div id="profile-state" class="state-panel" style="display: none;">
+      <div class="icon-circle icon-success">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"></path>
+        </svg>
+      </div>
+      <h2 class="panel-title">Profile Synced</h2>
+      <div class="profile-card">
+        <div class="profile-row">
+          <span class="profile-label">Name</span>
+          <span id="profile-name" class="profile-value">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">Email</span>
+          <span id="profile-email" class="profile-value">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">Profile ID</span>
+          <span id="profile-id" class="profile-value profile-id-value">—</span>
+        </div>
+      </div>
+      <a href="https://www.doordash.com" target="_blank" class="btn btn-doordash">
+        Open DoorDash 🛵
+      </a>
+      <button id="reset-btn" class="btn btn-reset">Reset Profile</button>
+    </div>
+
+    <div class="footer">
+      <a href="https://numi-signup.vercel.app/privacy" target="_blank" class="footer-link">Privacy Policy</a>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

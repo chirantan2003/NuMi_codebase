@@ -12,32 +12,30 @@ client = OpenAI()
 #  SCHEDULE-AWARENESS HELPER
 # ──────────────────────────────────────────────
 
-CALENDAR_FILE = os.path.join(os.path.dirname(__file__), "calendar_user.json")
-
-def _build_schedule_context() -> str:
+def _build_schedule_context(calendar_data=None) -> str:
     """
-    Reads calendar_user.json and returns it as a JSON string enriched with
-    current_time and minutes_until_next_meeting. The LLM is smart enough to
-    deduce busyness and meal-type context from the raw data.
+    Accepts calendar data (from Firestore) and returns it as a JSON string
+    enriched with current_time and minutes_until_next_meeting.
+    The LLM deduces busyness and meal-type context from the raw data.
     """
     now = datetime.now().astimezone()
     now_iso = now.isoformat()
     today_str = now.strftime("%Y-%m-%d")
 
-    # --- fallback when no calendar file exists ---
-    if not os.path.exists(CALENDAR_FILE):
+    # --- fallback when no calendar data is available ---
+    if not calendar_data:
         return json.dumps({"current_time": now_iso, "calendar": None})
 
-    with open(CALENDAR_FILE, "r", encoding="utf-8") as f:
-        cal = json.load(f)
-
     # --- compute minutes until next upcoming event ---
-    events = cal.get("events", [])
+    events = calendar_data.get("events", [])
     upcoming = []
     for ev in events:
-        start = datetime.fromisoformat(ev["start"])
-        if start > now:
-            upcoming.append({"title": ev["title"], "start": start})
+        try:
+            start = datetime.fromisoformat(ev["start"])
+            if start > now:
+                upcoming.append({"title": ev["title"], "start": start})
+        except (ValueError, KeyError):
+            continue
     upcoming.sort(key=lambda e: e["start"])
 
     if upcoming:
@@ -50,7 +48,7 @@ def _build_schedule_context() -> str:
         "current_time": now_iso,
         "today": today_str,
         "minutes_until_next_meeting": next_meeting,
-        "calendar": cal
+        "calendar": calendar_data
     })
 
 
@@ -106,14 +104,14 @@ Never explicitly tell the user you are reading their calendar — just let it in
 # ──────────────────────────────────────────────
 
 # --- MENU ANALYZER ---
-def process_menu_with_ai(input_file_path: str, user_profile: dict):
+def process_menu_with_ai(input_file_path: str, user_profile: dict, calendar_data=None):
     if not os.path.exists(input_file_path): return {"error": "File not found"}
     with open(input_file_path, 'r', encoding='utf-8') as f:
         raw_data = json.load(f)
     restaurant_id = raw_data.get('restaurantId', 'unknown')
     items_to_analyze = raw_data.get('items', [])[:]
 
-    schedule_ctx = _build_schedule_context()
+    schedule_ctx = _build_schedule_context(calendar_data)
 
     prompt_content = f"""
     Analyze these menu items based on the user profile and their current schedule, then suggest the top 5 most beneficial items.
@@ -137,13 +135,13 @@ def process_menu_with_ai(input_file_path: str, user_profile: dict):
 
 
 # --- FEED ANALYZER ---
-def process_feed_with_ai(input_file_path: str, user_profile: dict):
+def process_feed_with_ai(input_file_path: str, user_profile: dict, calendar_data=None):
     if not os.path.exists(input_file_path): return {"error": "File not found"}
     with open(input_file_path, 'r', encoding='utf-8') as f:
         raw_data = json.load(f)
     stores_to_analyze = raw_data.get('stores', [])[:]
 
-    schedule_ctx = _build_schedule_context()
+    schedule_ctx = _build_schedule_context(calendar_data)
 
     prompt_content = f"""
     Analyze the following list of restaurants currently visible on the user's food delivery feed.
@@ -168,7 +166,7 @@ def process_feed_with_ai(input_file_path: str, user_profile: dict):
 
 
 # --- CHAT INTERFACE ANALYZER ---
-def process_chat_with_ai(user_message: str, context_type: str, user_profile: dict):
+def process_chat_with_ai(user_message: str, context_type: str, user_profile: dict, calendar_data=None):
     file_path = "menu_raw.json" if context_type == 'menu' else "feed_raw.json"
 
     context_data = "No specific menu or feed data available."
@@ -180,7 +178,7 @@ def process_chat_with_ai(user_message: str, context_type: str, user_profile: dic
             else:
                 context_data = json.dumps(raw_data.get('stores', [])[:20])
 
-    schedule_ctx = _build_schedule_context()
+    schedule_ctx = _build_schedule_context(calendar_data)
 
     prompt_content = f"""
     You are NuMi, a helpful, candid, and interactive dietary AI assistant built into a Chrome extension.
@@ -213,8 +211,8 @@ def process_chat_with_ai(user_message: str, context_type: str, user_profile: dic
 
 
 # --- CUISINE ANALYZER ---
-def process_cuisines_with_ai(user_profile: dict):
-    schedule_ctx = _build_schedule_context()
+def process_cuisines_with_ai(user_profile: dict, calendar_data=None):
+    schedule_ctx = _build_schedule_context(calendar_data)
 
     prompt_content = f"""
     Based on the following user profile and their current schedule, suggest the top 5 broad food cuisines

@@ -1,4 +1,4 @@
-// interceptor.js - Runs in the MAIN world
+// interceptor.js - Runs in the MAIN world (DoorDash only)
 (function() {
   const originalFetch = window.fetch;
   

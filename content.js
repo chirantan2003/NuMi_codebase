@@ -9,6 +9,42 @@ let feedAiTriggered = false;
 let interceptDebounceTimer = null;
 let pendingPayloadToSend = null;
 
+// --- userId check helper ---
+function checkUserId() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: 'checkUserId' }, (response) => {
+      resolve(response?.userId || null);
+    });
+  });
+}
+
+// --- Signup Prompt UI (shown when user hasn't signed up) ---
+function showSignupPrompt() {
+  removeUI();
+  const panel = document.createElement('div');
+  panel.id = UI_ID;
+  panel.style.cssText = `
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    width: 340px; background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    color: #fff; border-radius: 24px; padding: 24px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3); z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    border: 1px solid rgba(255,255,255,0.1); text-align: center;
+  `;
+  panel.innerHTML = `
+    <div style="font-size: 24px; margin-bottom: 8px;">🍽️</div>
+    <div style="font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 4px;">NuMi needs your profile</div>
+    <div style="font-size: 12px; color: #aaa; margin-bottom: 16px; line-height: 1.4;">Create your NuMi profile to get personalized AI food recommendations here on DoorDash.</div>
+    <a href="https://numi-signup.vercel.app" target="_blank" style="
+      display: block; background: #506634; color: #fff; padding: 10px 20px; border-radius: 12px;
+      font-weight: 700; font-size: 14px; text-decoration: none; transition: all 0.2s;
+    ">Get Started →</a>
+    <div id="__numi_dismiss" style="cursor: pointer; font-size: 11px; color: #666; margin-top: 10px; font-weight: 500;">Dismiss</div>
+  `;
+  document.body.appendChild(panel);
+  document.getElementById('__numi_dismiss').addEventListener('click', removeUI);
+}
+
 // --- Extension Icon Listener ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "toggleUI") {
@@ -68,7 +104,12 @@ window.addEventListener('message', (event) => {
   }
 });
 
-function triggerBackend(dataPayload) {
+async function triggerBackend(dataPayload) {
+  const userId = await checkUserId();
+  if (!userId) {
+    showSignupPrompt();
+    return;
+  }
   showLoadingUI();
   chrome.runtime.sendMessage(
     { action: "sendToLocalServer", data: dataPayload },
@@ -489,7 +530,7 @@ function normalizeMenu(rawJson, restaurantId) {
 }
 
 // --- Initial Homepage Cuisine Trigger (BULLETPROOF VERSION) ---
-function triggerInitialCuisines() {
+async function triggerInitialCuisines() {
   const path = window.location.pathname;
   const isHomePage = path === '/' || path.startsWith('/home') || path.startsWith('/en-US');
 
@@ -505,6 +546,13 @@ function triggerInitialCuisines() {
       return;
     }
 
+    // Check if user is signed up before calling the backend
+    const userId = await checkUserId();
+    if (!userId) {
+      showSignupPrompt();
+      return;
+    }
+
     showLoadingUI();
 
     chrome.runtime.sendMessage({ action: "getCuisines", data: {} }, (response) => {
@@ -515,7 +563,7 @@ function triggerInitialCuisines() {
         const formattedCuisines = response.data.recommended_cuisines.map(c => ({
           restaurant_name: c.cuisine_name,
           explanation: c.explanation,
-          isCuisine: true // <-- Add this flag
+          isCuisine: true
         }));
         currentRecommendations = formattedCuisines;
         injectRecommendationsUI(formattedCuisines);

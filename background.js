@@ -1,45 +1,126 @@
+// background.js — NuMi Chrome Extension Service Worker
+// All API calls route through the hosted Python backend with userId
+
+// ============================================================
+// CONFIGURATION — Update this when deploying the backend
+// ============================================================
+const BACKEND_URL = 'https://numi-backend.up.railway.app';
+const SIGNUP_URL = 'https://numi-signup.vercel.app';
+
+// ============================================================
+// HELPER: Get userId from chrome.storage before making requests
+// ============================================================
+function getUserId() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['numi_user_id'], (result) => {
+      resolve(result.numi_user_id || null);
+    });
+  });
+}
+
+// ============================================================
+// MESSAGE LISTENERS — Content script → Background → Backend
+// ============================================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    
-    // Original listener for the scraping payload
-    if (request.action === "sendToLocalServer") {
-        fetch('http://127.0.0.1:5001/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(request.data)
-        })
-        .then(response => response.json())
-        .then(data => sendResponse(data))
-        .catch(error => sendResponse({ error: "Failed to connect to server" }));
-        return true; 
-    }
 
-    // NEW: Listener specifically for chat messages
-    if (request.action === "sendChatMessage") {
-        fetch('http://127.0.0.1:5001/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(request.data)
-        })
-        .then(response => response.json())
-        .then(data => sendResponse(data))
-        .catch(error => sendResponse({ error: "Failed to reach chat server" }));
-        return true; 
-    }
+  // --- Scraping payload (menu or feed data) ---
+  if (request.action === "sendToLocalServer") {
+    getUserId().then(userId => {
+      const payload = { ...request.data, userId };
+      fetch(`${BACKEND_URL}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(data => sendResponse(data))
+      .catch(error => {
+        console.error('[NuMi BG] Server error:', error);
+        sendResponse({ error: "Failed to connect to NuMi server" });
+      });
+    });
+    return true;
+  }
 
-    // NEW: Listener specifically for initial cuisine recommendations
-    if (request.action === "getCuisines") {
-        fetch('http://127.0.0.1:5001/cuisines', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(request.data || {})
-        })
-        .then(response => response.json())
-        .then(data => sendResponse(data))
-        .catch(error => sendResponse({ error: "Failed to reach cuisine server" }));
-        return true; 
-    }
+  // --- Chat messages ---
+  if (request.action === "sendChatMessage") {
+    getUserId().then(userId => {
+      const payload = { ...request.data, userId };
+      fetch(`${BACKEND_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(data => sendResponse(data))
+      .catch(error => {
+        console.error('[NuMi BG] Chat error:', error);
+        sendResponse({ error: "Failed to reach chat server" });
+      });
+    });
+    return true;
+  }
+
+  // --- Initial cuisine recommendations ---
+  if (request.action === "getCuisines") {
+    getUserId().then(userId => {
+      const payload = { ...(request.data || {}), userId };
+      fetch(`${BACKEND_URL}/cuisines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(data => sendResponse(data))
+      .catch(error => {
+        console.error('[NuMi BG] Cuisine error:', error);
+        sendResponse({ error: "Failed to reach cuisine server" });
+      });
+    });
+    return true;
+  }
+
+  // --- Check if user is signed up (used by content script) ---
+  if (request.action === "checkUserId") {
+    getUserId().then(userId => {
+      sendResponse({ userId });
+    });
+    return true;
+  }
 });
 
+// ============================================================
+// EXTERNAL MESSAGE LISTENER — Signup web app → Extension
+// The signup app sends the userId after profile creation
+// ============================================================
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+  if (request.action === 'setUserId') {
+    chrome.storage.local.set({
+      numi_user_id: request.userId,
+      numi_user_name: request.userName || '',
+      numi_user_email: request.userEmail || ''
+    }, () => {
+      console.log('[NuMi] ✅ User synced from signup app:', request.userId);
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+});
+
+// ============================================================
+// EXTENSION ICON CLICK — Toggle UI (fallback if popup is disabled)
+// ============================================================
+// NOTE: With default_popup set, this won't fire. Left here for
+// potential programmatic toggling via chrome.action.setPopup({popup: ''})
 chrome.action.onClicked.addListener((tab) => {
-    chrome.tabs.sendMessage(tab.id, { action: "toggleUI" });
+  chrome.tabs.sendMessage(tab.id, { action: "toggleUI" });
+});
+
+// ============================================================
+// ON INSTALL — Open signup page for first-time users
+// ============================================================
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: SIGNUP_URL });
+  }
 });
