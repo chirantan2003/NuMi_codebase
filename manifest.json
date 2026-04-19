@@ -3,11 +3,13 @@
   "name": "NuMi — Smart Food Assistant",
   "version": "1.0.0",
   "description": "AI-powered food recommendations on DoorDash, personalized to your dietary needs, health goals, and schedule.",
-  "permissions": ["activeTab", "storage"],
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
   "host_permissions": [
     "*://*.doordash.com/*"
   ],
-
   "background": {
     "service_worker": "background.js"
   },
@@ -17,20 +19,29 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.doordash.com/*"],
-      "js": ["interceptor.js"],
+      "matches": [
+        "*://*.doordash.com/*"
+      ],
+      "js": [
+        "interceptor.js"
+      ],
       "world": "MAIN",
       "run_at": "document_start"
     },
     {
-      "matches": ["*://*.doordash.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "*://*.doordash.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "world": "ISOLATED"
     }
   ],
   "externally_connectable": {
     "matches": [
-      "https://numi-signup.vercel.app/*"
+      "https://numi-signup.vercel.app/*",
+      "http://localhost:3000/*"
     ]
   }
 }

@@ -62,6 +62,20 @@ def _build_schedule_context(calendar_data=None) -> str:
 
 
 # ──────────────────────────────────────────────
+#  WEATHER-AWARENESS HELPER
+# ──────────────────────────────────────────────
+
+def _build_weather_context(weather_data=None) -> str:
+    """
+    Formats weather data into a JSON string for the LLM.
+    Weather data should contain temp, condition, humidity, etc.
+    """
+    if not weather_data:
+        return json.dumps({"weather": None})
+    return json.dumps({"weather": weather_data})
+
+
+# ──────────────────────────────────────────────
 #  MODELS
 # ──────────────────────────────────────────────
 
@@ -93,7 +107,7 @@ class CuisineAnalysis(BaseModel):
 
 
 # ──────────────────────────────────────────────
-#  SCHEDULE-AWARE SYSTEM INSTRUCTION
+#  SYSTEM INSTRUCTIONS
 # ──────────────────────────────────────────────
 
 _SCHEDULE_SYSTEM = """
@@ -107,13 +121,32 @@ When making food suggestions, take the user's real-time schedule into account:
 Never explicitly tell the user you are reading their calendar — just let it inform your choices seamlessly.
 """.strip()
 
+_WEATHER_SYSTEM = """
+Also factor in the current weather when suggesting food:
+  • Cold or chilly weather → favour warm, hearty, comforting meals (soups, stews, warm bowls). Suggest immune-boosting ingredients (ginger, turmeric, citrus).
+  • Hot or humid weather → favour lighter, hydrating meals (salads, poke bowls, smoothies, cold noodles).
+  • Rainy or gloomy weather → lean towards serotonin-boosting comfort foods within the user's health goals.
+  • If the user has poor sleep (from Oura data) combined with cold weather, prioritise immune-supportive foods.
+Never explicitly mention the weather to the user — just let it inform your choices naturally.
+""".strip()
+
+_MOOD_SYSTEM = """
+The user has selected a desired mood/feeling. Tailor food suggestions to support this goal:
+  • "energetic" → High-protein options, complex carbs, B-vitamin rich foods. Avoid heavy/greasy meals that cause crashes.
+  • "calm" → Magnesium-rich foods (leafy greens, nuts), anti-inflammatory options, warm comforting meals. Avoid caffeine-heavy or spicy items.
+  • "focused" → Omega-3 rich foods (salmon, walnuts), low glycemic index options for sustained brain energy. Avoid sugar spikes.
+  • "relaxed" → Tryptophan-containing foods, comfort food within health bounds, warm beverages. Gentle on digestion.
+  • "balanced" → General well-being, a mix of macronutrients. Default sensible recommendations.
+Weave the mood goal into your reasoning naturally without explicitly stating 'since you want to feel energetic...'.
+""".strip()
+
 
 # ──────────────────────────────────────────────
 #  ANALYZERS
 # ──────────────────────────────────────────────
 
 # --- MENU ANALYZER ---
-def process_menu_with_ai(input_file_path: str, user_profile: dict, calendar_data=None):
+def process_menu_with_ai(input_file_path: str, user_profile: dict, calendar_data=None, mood='balanced', weather_data=None):
     if not os.path.exists(input_file_path): return {"error": "File not found"}
     with open(input_file_path, 'r', encoding='utf-8') as f:
         raw_data = json.load(f)
@@ -121,12 +154,18 @@ def process_menu_with_ai(input_file_path: str, user_profile: dict, calendar_data
     items_to_analyze = raw_data.get('items', [])[:]
 
     schedule_ctx = _build_schedule_context(calendar_data)
+    weather_ctx = _build_weather_context(weather_data)
 
     prompt_content = f"""
-    Analyze these menu items based on the user profile and their current schedule, then suggest the top 5 most beneficial items.
+    Analyze these menu items based on the user profile, their current schedule, current weather, and their desired mood ({mood}), then suggest the top 5 most beneficial items.
 
     Schedule Context:
     {schedule_ctx}
+
+    Weather Context:
+    {weather_ctx}
+
+    Desired Mood: {mood}
 
     User Profile: {json.dumps(user_profile)}
     Menu Data: {json.dumps(items_to_analyze)}
@@ -135,7 +174,7 @@ def process_menu_with_ai(input_file_path: str, user_profile: dict, calendar_data
     completion = _get_client().beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "system", "content": f"You are a dietary nutritionist.\n\n{_SCHEDULE_SYSTEM}"},
+            {"role": "system", "content": f"You are a dietary nutritionist.\n\n{_SCHEDULE_SYSTEM}\n\n{_WEATHER_SYSTEM}\n\n{_MOOD_SYSTEM}"},
             {"role": "user", "content": prompt_content}
         ],
         response_format=RestaurantAnalysis, temperature=0.2
@@ -144,20 +183,26 @@ def process_menu_with_ai(input_file_path: str, user_profile: dict, calendar_data
 
 
 # --- FEED ANALYZER ---
-def process_feed_with_ai(input_file_path: str, user_profile: dict, calendar_data=None):
+def process_feed_with_ai(input_file_path: str, user_profile: dict, calendar_data=None, mood='balanced', weather_data=None):
     if not os.path.exists(input_file_path): return {"error": "File not found"}
     with open(input_file_path, 'r', encoding='utf-8') as f:
         raw_data = json.load(f)
     stores_to_analyze = raw_data.get('stores', [])[:]
 
     schedule_ctx = _build_schedule_context(calendar_data)
+    weather_ctx = _build_weather_context(weather_data)
 
     prompt_content = f"""
     Analyze the following list of restaurants currently visible on the user's food delivery feed.
-    Based on the user profile and their current schedule, suggest the top 5 restaurants that are most likely to offer healthy meals fitting their goals right now.
+    Based on the user profile, their current schedule, current weather, and their desired mood ({mood}), suggest the top 5 restaurants that are most likely to offer healthy meals fitting their goals right now.
 
     Schedule Context:
     {schedule_ctx}
+
+    Weather Context:
+    {weather_ctx}
+
+    Desired Mood: {mood}
 
     User Profile: {json.dumps(user_profile, indent=2)}
     Visible Restaurants: {json.dumps(stores_to_analyze)}
@@ -166,7 +211,7 @@ def process_feed_with_ai(input_file_path: str, user_profile: dict, calendar_data
     completion = _get_client().beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "system", "content": f"You are a dietary nutritionist analyzing restaurant options.\n\n{_SCHEDULE_SYSTEM}"},
+            {"role": "system", "content": f"You are a dietary nutritionist analyzing restaurant options.\n\n{_SCHEDULE_SYSTEM}\n\n{_WEATHER_SYSTEM}\n\n{_MOOD_SYSTEM}"},
             {"role": "user", "content": prompt_content}
         ],
         response_format=FeedAnalysis, temperature=0.2
@@ -175,7 +220,7 @@ def process_feed_with_ai(input_file_path: str, user_profile: dict, calendar_data
 
 
 # --- CHAT INTERFACE ANALYZER ---
-def process_chat_with_ai(user_message: str, context_type: str, user_profile: dict, calendar_data=None):
+def process_chat_with_ai(user_message: str, context_type: str, user_profile: dict, calendar_data=None, mood='balanced', weather_data=None):
     file_path = "menu_raw.json" if context_type == 'menu' else "feed_raw.json"
 
     context_data = "No specific menu or feed data available."
@@ -188,16 +233,43 @@ def process_chat_with_ai(user_message: str, context_type: str, user_profile: dic
                 context_data = json.dumps(raw_data.get('stores', [])[:20])
 
     schedule_ctx = _build_schedule_context(calendar_data)
+    weather_ctx = _build_weather_context(weather_data)
+
+    # Extract Oura biometric data if available
+    oura_data = user_profile.get('ouraMetrics', None)
+    oura_connected = user_profile.get('ouraConnected', False)
+    if oura_connected and oura_data:
+        biometrics_ctx = json.dumps({
+            "oura_connected": True,
+            "sleep_hours": oura_data.get("sleep", "unknown"),
+            "stress_level": oura_data.get("stress", "unknown"),
+            "readiness_score": oura_data.get("readiness", "unknown"),
+            "activity_score": oura_data.get("activity", "unknown")
+        })
+    else:
+        biometrics_ctx = json.dumps({"oura_connected": False})
 
     prompt_content = f"""
     You are NuMi, a helpful, candid, and interactive dietary AI assistant built into a Chrome extension.
     The user is currently looking at a DoorDash {context_type}. Answer their questions directly.
+    The user wants to feel: {mood}.
 
-    CRITICAL RULE: Never use prefatory phrases like "Based on your profile..." or "Since you like high protein...".
-    Treat the user's profile information as shared mental context and seamlessly weave it into your advice naturally.
+    CRITICAL RULES:
+    - Never use prefatory phrases like "Based on your profile..." or "Since you like high protein...".
+    - Treat the user's profile, biometrics, and preferences as shared mental context — weave them in naturally.
+    - If the user asks about their body, energy, sleep, or stress, use the Oura Ring biometric data below.
+    - Connect biometric signals to food advice: low sleep → energy-boosting foods, high stress → calming nutrients, low readiness → easy-to-digest comfort meals.
+
+    Biometrics (Oura Ring):
+    {biometrics_ctx}
 
     Schedule Context:
     {schedule_ctx}
+
+    Weather Context:
+    {weather_ctx}
+
+    Desired Mood: {mood}
 
     User Profile: {json.dumps(user_profile)}
 
@@ -210,7 +282,7 @@ def process_chat_with_ai(user_message: str, context_type: str, user_profile: dic
     completion = _get_client().chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": f"You are a helpful dietary assistant. Keep your answers concise, plain text, and conversational.\n\n{_SCHEDULE_SYSTEM}"},
+            {"role": "system", "content": f"You are a helpful dietary assistant. Keep your answers concise, plain text, and conversational.\n\n{_SCHEDULE_SYSTEM}\n\n{_WEATHER_SYSTEM}\n\n{_MOOD_SYSTEM}"},
             {"role": "user", "content": prompt_content}
         ],
         temperature=0.7
@@ -220,16 +292,22 @@ def process_chat_with_ai(user_message: str, context_type: str, user_profile: dic
 
 
 # --- CUISINE ANALYZER ---
-def process_cuisines_with_ai(user_profile: dict, calendar_data=None):
+def process_cuisines_with_ai(user_profile: dict, calendar_data=None, mood='balanced', weather_data=None):
     schedule_ctx = _build_schedule_context(calendar_data)
+    weather_ctx = _build_weather_context(weather_data)
 
     prompt_content = f"""
-    Based on the following user profile and their current schedule, suggest the top 5 broad food cuisines
-    (e.g., Thai, Mediterranean, Vegan) that best fit their dietary preferences, allergies, health goals,
-    and what would work well given how their day looks right now.
+    Based on the following user profile, their current schedule, current weather, and their desired mood ({mood}),
+    suggest the top 5 broad food cuisines (e.g., Thai, Mediterranean, Vegan) that best fit their dietary preferences,
+    allergies, health goals, and what would work well given how their day and the weather look right now.
 
     Schedule Context:
     {schedule_ctx}
+
+    Weather Context:
+    {weather_ctx}
+
+    Desired Mood: {mood}
 
     User Profile: {json.dumps(user_profile)}
     """
@@ -237,7 +315,7 @@ def process_cuisines_with_ai(user_profile: dict, calendar_data=None):
     completion = _get_client().beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "system", "content": f"You are NuMi, an expert dietary AI assistant. Recommend exactly 5 cuisines. Keep explanations under 2 sentences.\n\n{_SCHEDULE_SYSTEM}"},
+            {"role": "system", "content": f"You are NuMi, an expert dietary AI assistant. Recommend exactly 5 cuisines. Keep explanations under 2 sentences.\n\n{_SCHEDULE_SYSTEM}\n\n{_WEATHER_SYSTEM}\n\n{_MOOD_SYSTEM}"},
             {"role": "user", "content": prompt_content}
         ],
         response_format=CuisineAnalysis,

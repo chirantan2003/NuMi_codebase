@@ -1,11 +1,11 @@
 // background.js — NuMi Chrome Extension Service Worker
-// All API calls route through the hosted Python backend with userId
 
-// ============================================================
-// CONFIGURATION — Update this when deploying the backend
-// ============================================================
-const BACKEND_URL = 'https://numi-backend.up.railway.app';
-const SIGNUP_URL = 'https://numi-signup.vercel.app';
+// const BACKEND_URL = 'https://numi-backend.up.railway.app';
+const BACKEND_URL = 'http://localhost:5001';
+
+// For local testing, use localhost. For production, use the Vercel URL.
+// const SIGNUP_URL = 'https://numi-signup.vercel.app';
+const SIGNUP_URL = 'http://localhost:3000';
 
 // ============================================================
 // HELPER: Get userId from chrome.storage before making requests
@@ -26,18 +26,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // --- Scraping payload (menu or feed data) ---
   if (request.action === "sendToLocalServer") {
     getUserId().then(userId => {
-      const payload = { ...request.data, userId };
+      const payload = { ...request.data, userId, mood: request.data?.mood || 'balanced' };
       fetch(`${BACKEND_URL}/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      .then(response => response.json())
-      .then(data => sendResponse(data))
-      .catch(error => {
-        console.error('[NuMi BG] Server error:', error);
-        sendResponse({ error: "Failed to connect to NuMi server" });
-      });
+        .then(response => response.json())
+        .then(data => sendResponse(data))
+        .catch(error => {
+          console.error('[NuMi BG] Server error:', error);
+          sendResponse({ error: "Failed to connect to NuMi server" });
+        });
     });
     return true;
   }
@@ -45,18 +45,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // --- Chat messages ---
   if (request.action === "sendChatMessage") {
     getUserId().then(userId => {
-      const payload = { ...request.data, userId };
+      const payload = { ...request.data, userId, mood: request.data?.mood || 'balanced' };
       fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      .then(response => response.json())
-      .then(data => sendResponse(data))
-      .catch(error => {
-        console.error('[NuMi BG] Chat error:', error);
-        sendResponse({ error: "Failed to reach chat server" });
-      });
+        .then(response => response.json())
+        .then(data => sendResponse(data))
+        .catch(error => {
+          console.error('[NuMi BG] Chat error:', error);
+          sendResponse({ error: "Failed to reach chat server" });
+        });
     });
     return true;
   }
@@ -64,18 +64,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // --- Initial cuisine recommendations ---
   if (request.action === "getCuisines") {
     getUserId().then(userId => {
-      const payload = { ...(request.data || {}), userId };
+      const payload = { ...(request.data || {}), userId, mood: request.data?.mood || 'balanced' };
       fetch(`${BACKEND_URL}/cuisines`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      .then(response => response.json())
-      .then(data => sendResponse(data))
-      .catch(error => {
-        console.error('[NuMi BG] Cuisine error:', error);
-        sendResponse({ error: "Failed to reach cuisine server" });
-      });
+        .then(response => response.json())
+        .then(data => sendResponse(data))
+        .catch(error => {
+          console.error('[NuMi BG] Cuisine error:', error);
+          sendResponse({ error: "Failed to reach cuisine server" });
+        });
     });
     return true;
   }
@@ -121,6 +121,6 @@ chrome.action.onClicked.addListener((tab) => {
 // ============================================================
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    chrome.tabs.create({ url: SIGNUP_URL });
+    chrome.tabs.create({ url: `${SIGNUP_URL}?ext=${chrome.runtime.id}` });
   }
 });

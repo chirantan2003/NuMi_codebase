@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
+import time
+import requests as http_requests
 import firebase_admin
 from firebase_admin import credentials, firestore
 from analyzer import process_menu_with_ai, process_feed_with_ai, process_chat_with_ai, process_cuisines_with_ai
@@ -73,6 +75,41 @@ def get_calendar_data(user_id):
 
 
 # ============================================================
+# HELPER: Get current weather (cached 30 minutes)
+# ============================================================
+_weather_cache = {"data": None, "timestamp": 0}
+WEATHER_CACHE_DURATION = 1800  # 30 minutes
+
+def get_weather():
+    """Fetches current weather from wttr.in. Cached for 30 minutes."""
+    now = time.time()
+    if _weather_cache["data"] and (now - _weather_cache["timestamp"]) < WEATHER_CACHE_DURATION:
+        return _weather_cache["data"]
+
+    try:
+        resp = http_requests.get("https://wttr.in/?format=j1", timeout=5)
+        if resp.status_code == 200:
+            raw = resp.json()
+            current = raw.get("current_condition", [{}])[0]
+            weather_data = {
+                "temp_f": current.get("temp_F", "?"),
+                "temp_c": current.get("temp_C", "?"),
+                "condition": current.get("weatherDesc", [{}])[0].get("value", "Unknown"),
+                "humidity": current.get("humidity", "?"),
+                "feels_like_f": current.get("FeelsLikeF", "?"),
+                "wind_mph": current.get("windspeedMiles", "?"),
+            }
+            _weather_cache["data"] = weather_data
+            _weather_cache["timestamp"] = now
+            print(f"🌤️ Weather fetched: {weather_data['condition']}, {weather_data['temp_f']}°F")
+            return weather_data
+    except Exception as e:
+        print(f"⚠️ Weather fetch failed: {e}")
+
+    return None
+
+
+# ============================================================
 # HEALTH CHECK
 # ============================================================
 @app.route('/health', methods=['GET'])
@@ -87,13 +124,15 @@ def health_check():
 def get_cuisines():
     data = request.get_json() or {}
     user_id = data.get('userId')
+    mood = data.get('mood', 'balanced')
 
     dynamic_user_profile = get_user_profile(user_id)
     calendar_data = get_calendar_data(user_id)
+    weather_data = get_weather()
 
     try:
-        print(f"🍽️ Fetching initial cuisines for user: {user_id}")
-        ai_recommendations = process_cuisines_with_ai(dynamic_user_profile, calendar_data)
+        print(f"🍽️ Fetching initial cuisines for user: {user_id} | mood: {mood}")
+        ai_recommendations = process_cuisines_with_ai(dynamic_user_profile, calendar_data, mood, weather_data)
         return jsonify({"status": "success", "data": ai_recommendations}), 200
     except Exception as e:
         print(f"❌ Error fetching cuisines: {e}")
@@ -109,19 +148,21 @@ def save_data():
     if not data: return jsonify({"error": "No data received"}), 400
 
     user_id = data.get('userId')
+    mood = data.get('mood', 'balanced')
     dynamic_user_profile = get_user_profile(user_id)
     calendar_data = get_calendar_data(user_id)
+    weather_data = get_weather()
 
     try:
         if data.get('dataType') == 'feed':
             raw_file_path = os.path.join(os.path.dirname(__file__), "feed_raw.json")
             with open(raw_file_path, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4)
-            ai_recommendations = process_feed_with_ai(raw_file_path, dynamic_user_profile, calendar_data)
+            ai_recommendations = process_feed_with_ai(raw_file_path, dynamic_user_profile, calendar_data, mood, weather_data)
             return jsonify({"status": "success", "data": ai_recommendations}), 200
         else:
             raw_file_path = os.path.join(os.path.dirname(__file__), "menu_raw.json")
             with open(raw_file_path, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4)
-            ai_recommendations = process_menu_with_ai(raw_file_path, dynamic_user_profile, calendar_data)
+            ai_recommendations = process_menu_with_ai(raw_file_path, dynamic_user_profile, calendar_data, mood, weather_data)
             return jsonify({"status": "success", "data": ai_recommendations}), 200
     except Exception as e:
         import traceback
@@ -142,11 +183,13 @@ def handle_chat():
     user_message = data['message']
     context_type = data.get('contextType', 'menu')
     user_id = data.get('userId')
+    mood = data.get('mood', 'balanced')
     dynamic_user_profile = get_user_profile(user_id)
     calendar_data = get_calendar_data(user_id)
+    weather_data = get_weather()
 
     try:
-        ai_reply = process_chat_with_ai(user_message, context_type, dynamic_user_profile, calendar_data)
+        ai_reply = process_chat_with_ai(user_message, context_type, dynamic_user_profile, calendar_data, mood, weather_data)
         return jsonify({"status": "success", "reply": ai_reply}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

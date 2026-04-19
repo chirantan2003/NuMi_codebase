@@ -9,6 +9,65 @@ let feedAiTriggered = false;
 let interceptDebounceTimer = null;
 let pendingPayloadToSend = null;
 
+// Mood selector — persists across recommendation refreshes
+let currentMood = 'balanced';
+let lastTriggerType = null;  // 'cuisines' | 'menu_or_feed'
+let lastPayload = null;      // cached payload for re-triggering on mood change
+let moodRefreshTimer = null;
+
+function createMoodSelector() {
+  const moods = [
+    { value: 'energetic', label: '⚡ Energetic', color: '#FF9500' },
+    { value: 'calm', label: '🧘 Calm', color: '#5AC8FA' },
+    { value: 'focused', label: '🎯 Focused', color: '#AF52DE' },
+    { value: 'relaxed', label: '😌 Relaxed', color: '#34C759' },
+    { value: 'balanced', label: '🔋 Balanced', color: '#8E8E93' }
+  ];
+
+  const bar = document.createElement('div');
+  bar.className = 'numi-mood-bar';
+  bar.style.cssText = `
+    display: flex; gap: 6px; overflow-x: auto; padding: 2px 0; flex-shrink: 0;
+    scrollbar-width: none; -ms-overflow-style: none;
+  `;
+
+  moods.forEach(m => {
+    const pill = document.createElement('button');
+    pill.className = 'numi-mood-pill';
+    pill.dataset.mood = m.value;
+    const isActive = currentMood === m.value;
+    pill.style.cssText = `
+      flex-shrink: 0; border: none; padding: 6px 14px; border-radius: 20px;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.25s ease;
+      font-family: inherit; white-space: nowrap;
+      background: ${isActive ? m.color : 'rgba(255,255,255,0.12)'};
+      color: ${isActive ? '#fff' : 'rgba(255,255,255,0.7)'};
+      box-shadow: ${isActive ? `0 2px 8px ${m.color}44` : 'none'};
+    `;
+    pill.textContent = m.label;
+
+    pill.addEventListener('click', () => {
+      if (currentMood === m.value) return; // no change
+      currentMood = m.value;
+      // Update all pills in all mood bars on the page
+      document.querySelectorAll('.numi-mood-pill').forEach(p => {
+        const pm = moods.find(x => x.value === p.dataset.mood);
+        const active = p.dataset.mood === m.value;
+        p.style.background = active ? pm.color : 'rgba(255,255,255,0.12)';
+        p.style.color = active ? '#fff' : 'rgba(255,255,255,0.7)';
+        p.style.boxShadow = active ? `0 2px 8px ${pm.color}44` : 'none';
+      });
+      // Debounce and re-trigger AI with new mood
+      clearTimeout(moodRefreshTimer);
+      moodRefreshTimer = setTimeout(() => refreshForMood(), 400);
+    });
+
+    bar.appendChild(pill);
+  });
+
+  return bar;
+}
+
 // --- userId check helper ---
 function checkUserId() {
   return new Promise((resolve) => {
@@ -110,9 +169,11 @@ async function triggerBackend(dataPayload) {
     showSignupPrompt();
     return;
   }
+  lastTriggerType = 'menu_or_feed';
+  lastPayload = dataPayload;
   showLoadingUI();
   chrome.runtime.sendMessage(
-    { action: "sendToLocalServer", data: dataPayload },
+    { action: "sendToLocalServer", data: { ...dataPayload, mood: currentMood } },
     (response) => {
       if (response && response.data) {
         currentRecommendations = response.data.recommended_items || response.data.recommended_restaurants;
@@ -125,6 +186,42 @@ async function triggerBackend(dataPayload) {
       console.error("Failed to get recommendations", response);
     }
   );
+}
+
+// --- Re-trigger AI when mood changes ---
+function refreshForMood() {
+  console.log(`[NuMi] 🎭 Mood changed to "${currentMood}" — refreshing suggestions...`);
+  if (lastTriggerType === 'menu_or_feed' && lastPayload) {
+    showLoadingUI();
+    chrome.runtime.sendMessage(
+      { action: "sendToLocalServer", data: { ...lastPayload, mood: currentMood } },
+      (response) => {
+        if (response && response.data) {
+          currentRecommendations = response.data.recommended_items || response.data.recommended_restaurants;
+          if (currentRecommendations) {
+            injectRecommendationsUI(currentRecommendations);
+            return;
+          }
+        }
+        removeUI();
+      }
+    );
+  } else if (lastTriggerType === 'cuisines') {
+    showLoadingUI();
+    chrome.runtime.sendMessage({ action: "getCuisines", data: { mood: currentMood } }, (response) => {
+      if (response && response.data && response.data.recommended_cuisines) {
+        const formattedCuisines = response.data.recommended_cuisines.map(c => ({
+          restaurant_name: c.cuisine_name,
+          explanation: c.explanation,
+          isCuisine: true
+        }));
+        currentRecommendations = formattedCuisines;
+        injectRecommendationsUI(formattedCuisines);
+      } else {
+        removeUI();
+      }
+    });
+  }
 }
 
 // --- DoorDash "Ghost Click" Logic (With Manual Scroll Cancel) ---
@@ -199,17 +296,20 @@ function showLoadingUI() {
   panel.id = UI_ID;
   panel.style.cssText = `
     position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-    width: 320px; background: rgba(30, 30, 30, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    width: 420px; background: rgba(30, 30, 30, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     color: #fff; border-radius: 24px; padding: 20px;
     box-shadow: 0 20px 40px rgba(0,0,0,0.3); z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     border: 1px solid rgba(255,255,255,0.1); text-align: center;
+    display: flex; flex-direction: column; gap: 12px;
   `;
   panel.innerHTML = `
-    <div style="font-size: 20px; margin-bottom: 8px;">✨</div>
+    <div style="font-size: 20px; margin-bottom: 4px;">✨</div>
     <div style="font-weight: 600; font-size: 15px; color: #fff;">NuMi is analyzing...</div>
-    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">Finding the perfect options</div>
+    <div style="font-size: 12px; color: #aaa; margin-top: 2px;">Pick your vibe while I find the perfect options</div>
   `;
+  // Add mood selector to loading screen
+  panel.appendChild(createMoodSelector());
   document.body.appendChild(panel);
 }
 
@@ -314,6 +414,8 @@ function injectRecommendationsUI(recommendations) {
         </div>
     </div>
 
+    <div id="numi_mood_slot"></div>
+
     <div id="numi_body" style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: none; padding-bottom: 4px;">
         
         <div style="background: rgba(255,255,255,0.9); border-radius: 16px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); flex-shrink: 0;">
@@ -336,6 +438,10 @@ function injectRecommendationsUI(recommendations) {
   `;
 
   document.body.appendChild(panel);
+
+  // Inject mood selector into the slot
+  const moodSlot = document.getElementById('numi_mood_slot');
+  if (moodSlot) moodSlot.appendChild(createMoodSelector());
 
   // --- Header Controls Logic ---
   const bodyEl = document.getElementById('numi_body');
@@ -427,6 +533,11 @@ function injectRecommendationsUI(recommendations) {
   const chatSendBtn = document.getElementById('chat_send_btn');
   const chatHistory = document.getElementById('chat_history');
 
+  // Prevent DoorDash from intercepting keyboard events on our input
+  ['keydown', 'keyup', 'keypress', 'input'].forEach(evtType => {
+    chatInput.addEventListener(evtType, (e) => e.stopPropagation());
+  });
+
   function handleChatSend() {
     const msg = chatInput.value.trim();
     if (!msg) return;
@@ -438,14 +549,22 @@ function injectRecommendationsUI(recommendations) {
     const loadingId = appendChatMessage('NuMi', 'Thinking...', '#aaaaaa', 'transparent');
     setTimeout(() => bodyEl.scrollTop = bodyEl.scrollHeight, 50);
 
+    console.log('[NuMi Chat] Sending:', { message: msg, contextType: contextType.toLowerCase(), mood: currentMood });
+
     chrome.runtime.sendMessage(
-      { action: "sendChatMessage", data: { message: msg, contextType: contextType.toLowerCase() } },
+      { action: "sendChatMessage", data: { message: msg, contextType: contextType.toLowerCase(), mood: currentMood } },
       (response) => {
+        console.log('[NuMi Chat] Response:', response);
         const loadingEl = document.getElementById(loadingId);
         if (loadingEl) loadingEl.remove();
 
-        if (response && response.reply) {
+        if (chrome.runtime.lastError) {
+          console.error('[NuMi Chat] Runtime error:', chrome.runtime.lastError);
+          appendChatMessage('Error', 'Extension connection lost. Try reloading.', '#ff4444', 'transparent');
+        } else if (response && response.reply) {
           appendChatMessage('NuMi', response.reply, '#fff', 'rgba(43, 43, 255, 0.2)');
+        } else if (response && response.error) {
+          appendChatMessage('Error', response.error, '#ff4444', 'transparent');
         } else {
           appendChatMessage('Error', 'Failed to reach AI.', '#ff4444', 'transparent');
         }
@@ -553,9 +672,10 @@ async function triggerInitialCuisines() {
       return;
     }
 
+    lastTriggerType = 'cuisines';
     showLoadingUI();
 
-    chrome.runtime.sendMessage({ action: "getCuisines", data: {} }, (response) => {
+    chrome.runtime.sendMessage({ action: "getCuisines", data: { mood: currentMood } }, (response) => {
       console.log("🍔 [NuMi] Background script responded with:", response);
 
       if (response && response.data && response.data.recommended_cuisines) {
