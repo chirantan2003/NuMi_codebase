@@ -133,7 +133,7 @@ Never explicitly mention the weather to the user — just let it inform your cho
 _MOOD_SYSTEM = """
 The user has selected a desired mood/feeling. Tailor food suggestions to support this goal:
   • "energetic" → High-protein options, complex carbs, B-vitamin rich foods. Avoid heavy/greasy meals that cause crashes.
-  • "calm" → Magnesium-rich foods (leafy greens, nuts), anti-inflammatory options, warm comforting meals. Avoid caffeine-heavy or spicy items.
+  • "De-stress" → Magnesium-rich foods (leafy greens, nuts), anti-inflammatory options, warm comforting meals. Avoid caffeine-heavy or spicy items.
   • "focused" → Omega-3 rich foods (salmon, walnuts), low glycemic index options for sustained brain energy. Avoid sugar spikes.
   • "relaxed" → Tryptophan-containing foods, comfort food within health bounds, warm beverages. Gentle on digestion.
   • "balanced" → General well-being, a mix of macronutrients. Default sensible recommendations.

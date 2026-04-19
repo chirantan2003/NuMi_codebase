@@ -18,7 +18,7 @@ let moodRefreshTimer = null;
 function createMoodSelector() {
   const moods = [
     { value: 'energetic', label: '⚡ Energetic', color: '#FF9500' },
-    { value: 'calm', label: '🧘 Calm', color: '#5AC8FA' },
+    { value: 'De-stress', label: '🧘 De-stress', color: '#5AC8FA' },
     { value: 'focused', label: '🎯 Focused', color: '#AF52DE' },
     { value: 'relaxed', label: '😌 Relaxed', color: '#34C759' },
     { value: 'balanced', label: '🔋 Balanced', color: '#8E8E93' }
