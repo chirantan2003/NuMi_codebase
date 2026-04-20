@@ -85,6 +85,7 @@ class RecommendedItem(BaseModel):
     explanation: str
 
 class RestaurantAnalysis(BaseModel):
+    overall_advice: str
     restaurant_id: str
     cuisine_type: str
     recommended_items: list[RecommendedItem]
@@ -95,6 +96,7 @@ class RecommendedRestaurant(BaseModel):
     explanation: str
 
 class FeedAnalysis(BaseModel):
+    overall_advice: str
     recommended_restaurants: list[RecommendedRestaurant]
 
 # --- CUISINE MODELS ---
@@ -103,6 +105,7 @@ class RecommendedCuisine(BaseModel):
     explanation: str
 
 class CuisineAnalysis(BaseModel):
+    overall_advice: str
     recommended_cuisines: list[RecommendedCuisine]
 
 
@@ -118,7 +121,7 @@ When making food suggestions, take the user's real-time schedule into account:
   • If the day is very busy, prioritise energy-sustaining, easy-to-eat options.
   • If the day is light/free, feel free to recommend more indulgent or elaborate options.
   • Factor in the time of day (breakfast / lunch / dinner / late-night snack) naturally.
-Never explicitly tell the user you are reading their calendar — just let it inform your choices seamlessly.
+Important: Always generate an 'overall_advice' string. The advice MUST explicitly synthesise their profile data (like age, goals, dietary preferences), calendar/schedule busyness, weather, and requested mood into a short, compelling 2-sentence summary of why you are showing these options (e.g. 'Since it is cold outside and you have a busy afternoon of meetings...').
 """.strip()
 
 _WEATHER_SYSTEM = """
@@ -127,7 +130,6 @@ Also factor in the current weather when suggesting food:
   • Hot or humid weather → favour lighter, hydrating meals (salads, poke bowls, smoothies, cold noodles).
   • Rainy or gloomy weather → lean towards serotonin-boosting comfort foods within the user's health goals.
   • If the user has poor sleep (from Oura data) combined with cold weather, prioritise immune-supportive foods.
-Never explicitly mention the weather to the user — just let it inform your choices naturally.
 """.strip()
 
 _MOOD_SYSTEM = """
@@ -137,7 +139,6 @@ The user has selected a desired mood/feeling. Tailor food suggestions to support
   • "focused" → Omega-3 rich foods (salmon, walnuts), low glycemic index options for sustained brain energy. Avoid sugar spikes.
   • "relaxed" → Tryptophan-containing foods, comfort food within health bounds, warm beverages. Gentle on digestion.
   • "balanced" → General well-being, a mix of macronutrients. Default sensible recommendations.
-Weave the mood goal into your reasoning naturally without explicitly stating 'since you want to feel energetic...'.
 """.strip()
 
 

@@ -17,17 +17,17 @@ let moodRefreshTimer = null;
 
 function createMoodSelector() {
   const moods = [
-    { value: 'energetic', label: '⚡ Energetic', color: '#FF9500' },
-    { value: 'De-stress', label: '🧘 De-stress', color: '#5AC8FA' },
-    { value: 'focused', label: '🎯 Focused', color: '#AF52DE' },
-    { value: 'relaxed', label: '😌 Relaxed', color: '#34C759' },
-    { value: 'balanced', label: '🔋 Balanced', color: '#8E8E93' }
+    { value: 'energetic', label: '☄️ Energetic' },
+    { value: 'calm', label: '🌌 Calm' },
+    { value: 'focussed', label: '💠 Focussed' },
+    { value: 'de-stress', label: '🌀 De-Stress' },
+    { value: 'balanced', label: '🫧 Balanced' }
   ];
 
   const bar = document.createElement('div');
   bar.className = 'numi-mood-bar';
   bar.style.cssText = `
-    display: flex; gap: 6px; overflow-x: auto; padding: 2px 0; flex-shrink: 0;
+    display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; flex-shrink: 0;
     scrollbar-width: none; -ms-overflow-style: none;
   `;
 
@@ -37,12 +37,13 @@ function createMoodSelector() {
     pill.dataset.mood = m.value;
     const isActive = currentMood === m.value;
     pill.style.cssText = `
-      flex-shrink: 0; border: none; padding: 6px 14px; border-radius: 20px;
-      font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.25s ease;
-      font-family: inherit; white-space: nowrap;
-      background: ${isActive ? m.color : 'rgba(255,255,255,0.12)'};
-      color: ${isActive ? '#fff' : 'rgba(255,255,255,0.7)'};
-      box-shadow: ${isActive ? `0 2px 8px ${m.color}44` : 'none'};
+      flex-shrink: 0; padding: 8px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.25s ease;
+      font-family: inherit; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+      background: #ffffff;
+      color: #1a4049;
+      border: 1px solid ${isActive ? '#1a4049' : '#e0e0e0'};
+      box-shadow: ${isActive ? '0 0 0 1px #1a4049' : 'none'};
     `;
     pill.textContent = m.label;
 
@@ -51,11 +52,9 @@ function createMoodSelector() {
       currentMood = m.value;
       // Update all pills in all mood bars on the page
       document.querySelectorAll('.numi-mood-pill').forEach(p => {
-        const pm = moods.find(x => x.value === p.dataset.mood);
         const active = p.dataset.mood === m.value;
-        p.style.background = active ? pm.color : 'rgba(255,255,255,0.12)';
-        p.style.color = active ? '#fff' : 'rgba(255,255,255,0.7)';
-        p.style.boxShadow = active ? `0 2px 8px ${pm.color}44` : 'none';
+        p.style.border = active ? '1px solid #1a4049' : '1px solid #e0e0e0';
+        p.style.boxShadow = active ? '0 0 0 1px #1a4049' : 'none';
       });
       // Debounce and re-trigger AI with new mood
       clearTimeout(moodRefreshTimer);
@@ -178,7 +177,7 @@ async function triggerBackend(dataPayload) {
       if (response && response.data) {
         currentRecommendations = response.data.recommended_items || response.data.recommended_restaurants;
         if (currentRecommendations) {
-          injectRecommendationsUI(currentRecommendations);
+          injectRecommendationsUI(currentRecommendations, response.data.overall_advice, response.user_profile);
           return;
         }
       }
@@ -199,7 +198,7 @@ function refreshForMood() {
         if (response && response.data) {
           currentRecommendations = response.data.recommended_items || response.data.recommended_restaurants;
           if (currentRecommendations) {
-            injectRecommendationsUI(currentRecommendations);
+            injectRecommendationsUI(currentRecommendations, response.data.overall_advice, response.user_profile);
             return;
           }
         }
@@ -216,7 +215,7 @@ function refreshForMood() {
           isCuisine: true
         }));
         currentRecommendations = formattedCuisines;
-        injectRecommendationsUI(formattedCuisines);
+        injectRecommendationsUI(formattedCuisines, response.data.overall_advice, response.user_profile);
       } else {
         removeUI();
       }
@@ -296,37 +295,36 @@ function showLoadingUI() {
   panel.id = UI_ID;
   panel.style.cssText = `
     position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-    width: 420px; background: rgba(30, 30, 30, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    width: 420px; background: rgba(100, 130, 140, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     color: #fff; border-radius: 24px; padding: 20px;
     box-shadow: 0 20px 40px rgba(0,0,0,0.3); z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    border: 1px solid rgba(255,255,255,0.1); text-align: center;
+    border: 1px solid rgba(255,255,255,0.3); text-align: center;
     display: flex; flex-direction: column; gap: 12px;
   `;
   panel.innerHTML = `
     <div style="font-size: 20px; margin-bottom: 4px;">✨</div>
     <div style="font-weight: 600; font-size: 15px; color: #fff;">NuMi is analyzing...</div>
-    <div style="font-size: 12px; color: #aaa; margin-top: 2px;">Pick your vibe while I find the perfect options</div>
+    <div style="font-size: 12px; color: #fff; opacity: 0.9; margin-top: 2px;">Pick your vibe while I find the perfect options</div>
   `;
   // Add mood selector to loading screen
   panel.appendChild(createMoodSelector());
   document.body.appendChild(panel);
 }
 
-function injectRecommendationsUI(recommendations) {
+function injectRecommendationsUI(recommendations, advice, profile) {
   removeUI();
   const panel = document.createElement("div");
   panel.id = UI_ID;
 
   panel.style.cssText = `
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    width: 90%; max-width: 800px; max-height: 85vh;
-    background: rgba(80, 75, 60, 0.4); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-    border-radius: 28px; padding: 16px 20px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.4); z-index: 999999;
+    width: 90%; max-width: 700px; max-height: 90vh;
+    background: rgba(100, 130, 140, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-radius: 32px; padding: 24px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.3); z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    border: 1px solid rgba(255,255,255,0.2);
-    display: flex; flex-direction: column; gap: 12px; transition: all 0.3s ease;
+    display: flex; flex-direction: column; gap: 16px; transition: width 0.3s ease, padding 0.3s ease;
   `;
 
   const contextType = recommendations[0].item_name ? 'MENU' : 'RESTAURANT';
@@ -337,8 +335,8 @@ function injectRecommendationsUI(recommendations) {
     // --- NEW: Conditionally render buttons only if it's NOT a cuisine ---
     const buttonsHtml = rec.isCuisine ? '' : `
         <div style="display: flex; gap: 8px;">
-            <button class="nope-btn" style="flex: 1; background: #f0f0f0; color: #555; border: none; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Nope 👎</button>
-            <button class="open-btn" style="flex: 1; background: #2b2bff; color: #fff; border: none; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Open ↗</button>
+            <button class="nope-btn" style="flex: 1; background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Nope 👎</button>
+            <button class="open-btn" style="flex: 1; background: #fff; color: #3b626e; border: none; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">Open ↗</button>
         </div>
     `;
 
@@ -347,17 +345,15 @@ function injectRecommendationsUI(recommendations) {
     const safeExplanation = rec.explanation.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     return `
       <div class="ai-food-card" data-name="${nameToDisplay}" data-is-cuisine="${!!rec.isCuisine}" data-explanation="${safeExplanation}" style="
-        background: #ffffff; color: #333; border-radius: 20px; padding: 16px;
-        min-width: 260px; width: 280px; flex-shrink: 0; position: relative;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.08); cursor: pointer; transition: transform 0.2s;
+        background: linear-gradient(135deg, #719b9f, #416870); color: #ffffff; border-radius: 16px; padding: 14px;
+        min-width: 190px; width: 210px; flex-shrink: 0; position: relative;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;
         display: flex; flex-direction: column; justify-content: space-between;
       ">
         <div>
-            <div style="font-size: 16px; font-weight: 700; margin-bottom: 2px; line-height: 1.2;">${nameToDisplay}</div>
-            <div style="font-size: 11px; color: #777; margin-bottom: 12px;">Highly Recommended</div>
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 2px; line-height: 1.2;">${nameToDisplay}</div>
             
-            <div style="font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 4px;">Why this choice?</div>
-            <div class="card-explanation" style="font-size: 12px; color: #444; line-height: 1.4; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
+            <div class="card-explanation" style="font-size: 12px; color: rgba(255,255,255,0.95); line-height: 1.4; margin-top: 8px; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
               ${rec.explanation}
             </div>
         </div>
@@ -367,73 +363,127 @@ function injectRecommendationsUI(recommendations) {
     `;
   }).join('');
 
+  const isCuisineMode = !!recommendations[0].isCuisine;
+
+  let prefsHtml = '';
+  if (isCuisineMode && profile) {
+      const prefs = [];
+      const healthGoals = profile.health?.goals || [];
+      const foodPrefs = profile.dietary?.foodPrefs || [];
+      const allergies = profile.dietary?.allergies || [];
+      const conditions = profile.dietary?.conditions || [];
+
+      healthGoals.forEach(goal => prefs.push({ icon: chrome.runtime.getURL('public/health.png'), title: goal, subtitle: 'Health Goal' }));
+      foodPrefs.forEach(pref => prefs.push({ icon: chrome.runtime.getURL('public/food%20preferences.png'), title: pref, subtitle: 'Food Preferences' }));
+      allergies.forEach(allergy => prefs.push({ icon: chrome.runtime.getURL('public/specific%20diet.png'), title: allergy, subtitle: 'Specific Diets' }));
+      conditions.forEach(cond => prefs.push({ icon: chrome.runtime.getURL('public/specific%20diet.png'), title: cond, subtitle: 'Specific Diets' }));
+      
+      // Fallback defaults if empty just to show
+      if (prefs.length === 0) {
+          prefs.push({ icon: chrome.runtime.getURL('public/health.png'), title: 'General Health', subtitle: 'Health Goals' });
+          prefs.push({ icon: chrome.runtime.getURL('public/food%20preferences.png'), title: 'Omnivore', subtitle: 'Food Preferences' });
+          prefs.push({ icon: chrome.runtime.getURL('public/specific%20diet.png'), title: 'None', subtitle: 'Specific Diets' });
+      }
+
+      prefsHtml = `
+      <div class="numi-cards-slider" style="display: flex; gap: 16px; margin-top: 8px; overflow-x: auto; padding-bottom: 8px; flex-shrink: 0;">
+          ${prefs.map(p => `
+              <div style="background: #ffffff; border-radius: 24px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 140px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center; flex-shrink: 0;">
+                  <img src="${p.icon}" style="width: 28px; height: 28px; object-fit: contain; margin-bottom: 8px;" />
+                  <div style="font-weight: 700; font-size: 13px; color: #1a4049; margin-bottom: 2px;">${p.title}</div>
+                  <div style="font-size: 11px; color: #888;">${p.subtitle}</div>
+              </div>
+          `).join('')}
+      </div>`;
+  }
+
+  let adviceHtml = '';
+  if (advice) {
+      adviceHtml = `
+          <div style="background: #ffffff; border-radius: 24px; padding: 12px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); flex-shrink: 0;">
+              <div style="font-size: 16px; font-weight: 700; color: #1a4049; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">✨ Advice</div>
+              <div style="font-size: 14px; color: #555; line-height: 1.5;">${advice}</div>
+          </div>
+      `;
+  } else {
+      adviceHtml = `
+          <div style="background: #ffffff; border-radius: 24px; padding: 12px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); flex-shrink: 0;">
+              <div style="font-size: 16px; font-weight: 700; color: #1a4049; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">✨ Advice</div>
+              <div style="font-size: 14px; color: #555; line-height: 1.5;">Based on your profile, I have found the best options to maximize your goals while keeping you energetic.</div>
+          </div>
+      `;
+  }
+
   panel.innerHTML = `
     <style>
-        #chat_input::placeholder { color: #ffffff; opacity: 0.9; }
+        #chat_input::placeholder { color: #888; font-weight: 400; }
         .numi-cards-slider::-webkit-scrollbar { height: 8px; }
-        .numi-cards-slider::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 8px; }
-        .numi-cards-slider::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.4); border-radius: 8px; }
-        .numi-cards-slider::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.6); }
+        .numi-cards-slider::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 8px; }
+        .numi-cards-slider::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 8px; }
+        .numi-cards-slider::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
         .numi-modal-backdrop {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
             z-index: 1000000; display: flex; align-items: center; justify-content: center;
             opacity: 0; transition: opacity 0.25s ease;
         }
         .numi-modal-backdrop.visible { opacity: 1; }
         .numi-modal-card {
-            background: rgba(32, 32, 32, 0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.15); border-radius: 20px;
+            background: #ffffff;
+            border-radius: 20px;
             padding: 28px 32px; max-width: 420px; width: 90%; max-height: 70vh; overflow-y: auto;
-            color: #eee; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+            color: #333; box-shadow: 0 24px 64px rgba(0,0,0,0.2);
             transform: scale(0.92); transition: transform 0.25s ease;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         .numi-modal-backdrop.visible .numi-modal-card { transform: scale(1); }
         .numi-modal-card::-webkit-scrollbar { width: 5px; }
-        .numi-modal-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
-        .numi-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #fff; }
+        .numi-modal-card::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        .numi-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; color: #1a4049; }
         .numi-modal-subtitle { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 10px; }
-        .numi-modal-text { font-size: 14px; line-height: 1.6; color: #ddd; }
+        .numi-modal-text { font-size: 14px; line-height: 1.6; color: #444; }
         .numi-modal-close {
-            position: absolute; top: 14px; right: 18px; background: rgba(255,255,255,0.1); border: none;
-            color: #aaa; width: 28px; height: 28px; border-radius: 50%; font-size: 14px;
+            position: absolute; top: 14px; right: 18px; background: rgba(0,0,0,0.05); border: none;
+            color: #1a4049; width: 28px; height: 28px; border-radius: 50%; font-size: 14px;
             cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;
         }
-        .numi-modal-close:hover { background: rgba(255,255,255,0.2); color: #fff; }
+        .numi-modal-close:hover { background: rgba(0,0,0,0.1); }
     </style>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
-        <div style="color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px;">
-            <span style="background: #fff; border-radius: 4px; padding: 2px 6px; color: #b38f00; font-size: 11px;">★</span>
-            NuMi
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 0 4px;">
+        <div style="color: #ffffff; font-family: Georgia, serif; font-weight: 700; font-size: 32px; display: flex; align-items: center; gap: 6px;">
+            NuMI
         </div>
-        <div style="display: flex; gap: 8px;">
-            <div id="minimize_btn" style="cursor: pointer; background: rgba(0,0,0,0.3); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; transition: 0.2s;">−</div>
-            <div id="close_btn" style="cursor: pointer; background: #ff4444; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; transition: 0.2s;">✖</div>
+        <div style="display: flex; gap: 16px; align-items: center;">
+            <div id="minimize_btn" style="cursor: pointer; color: #ffffff; font-weight: bold; font-size: 20px;">−</div>
+            <div id="close_btn" style="cursor: pointer; color: #ffffff; font-weight: bold; font-size: 16px;">✖</div>
         </div>
     </div>
 
-    <div id="numi_mood_slot"></div>
-
-    <div id="numi_body" style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: none; padding-bottom: 4px;">
+    <div id="numi_body" style="display: flex; flex-direction: column; gap: 16px; overflow-y: auto; scrollbar-width: none; padding-bottom: 4px;">
         
-        <div style="background: rgba(255,255,255,0.9); border-radius: 16px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); flex-shrink: 0;">
-            <div style="font-size: 11px; font-weight: 800; color: #333; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">✨ ADVICE</div>
-            <div style="font-size: 13px; color: #444; line-height: 1.4;">Based on your profile, these options maximize your goals while keeping you energetic. I've prioritized meals that align perfectly with your preferences.</div>
+        ${prefsHtml}
+        ${adviceHtml}
+
+        <div style="background: white; border-radius: 24px; padding: 16px 20px; display: flex; flex-direction: column; box-shadow: 0 4px 16px rgba(0,0,0,0.05);">
+            <div style="font-size: 20px; font-weight: 700; color: #1a4049; font-family: Georgia, serif;">How do you want to feel ?</div>
+            
+            <div id="numi_mood_slot" style="margin-top: 8px;"></div>
+
+            <div style="font-size: 20px; font-weight: 700; color: #1a4049; font-family: Georgia, serif; margin-top: 6px;">Suggested ${isCuisineMode ? 'Cuisines' : 'Options'}</div>
+
+            <div class="numi-cards-slider" style="display: flex; gap: 16px; overflow-x: auto; padding-top: 8px; padding-bottom: 4px; flex-shrink: 0;">
+                ${cardsHtml}
+            </div>
         </div>
 
-        <div class="numi-cards-slider" style="display: flex; gap: 12px; overflow-x: auto; padding-top: 6px; padding-bottom: 12px; flex-shrink: 0;">
-            ${cardsHtml}
-        </div>
-
-        <div id="chat_history" style="display: none; background: rgba(0,0,0,0.2); border-radius: 16px; padding: 12px; max-height: 120px; overflow-y: auto; flex-direction: column; gap: 8px; flex-shrink: 0;"></div>
+        <div id="chat_history" style="display: none; background: #ffffff; border-radius: 20px; padding: 16px; max-height: 150px; overflow-y: auto; flex-direction: column; gap: 10px; flex-shrink: 0; box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);"></div>
     </div>
 
-    <div id="numi_chat_bar" style="display: flex; align-items: center; background: rgba(0,0,0,0.4); border-radius: 30px; padding: 6px 6px 6px 14px; gap: 10px; flex-shrink: 0;">
-        <div style="background: #a38c22; color: #fff; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px;">🐥</div>
-        <input type="text" id="chat_input" placeholder="✨ Chat about Anything" style="background: transparent; border: none; color: #fff; outline: none; flex: 1; font-size: 14px; font-family: inherit;">
-        <button id="chat_send_btn" style="background: #8b7315; color: #fff; border: none; padding: 8px 14px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">Suggest 💬</button>
+    <div id="numi_chat_bar" style="display: flex; align-items: center; background: #ffffff; border-radius: 32px; padding: 4px 6px 4px 16px; gap: 12px; flex-shrink: 0; box-shadow: 0 4px 16px rgba(0,0,0,0.05); margin-top: 4px;">
+        <div style="color: #1a4049; font-size: 20px;">✨</div>
+        <input type="text" id="chat_input" placeholder="Chat about anything" style="background: transparent; border: none; color: #333; outline: none; flex: 1; font-size: 16px; font-family: inherit;">
+        <button id="chat_send_btn" style="background: #fca34d; color: #fff; border: none; width: 34px; height: 34px; border-radius: 50%; font-weight: 600; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(252,163,77,0.3);">↑</button>
     </div>
   `;
 
@@ -453,6 +503,7 @@ function injectRecommendationsUI(recommendations) {
     chatBarEl.style.display = 'none';
     minBtn.innerText = '−';
     panel.style.width = '300px';
+    panel.style.padding = '12px 24px';
   }
 
   function maximizeUI() {
@@ -460,6 +511,7 @@ function injectRecommendationsUI(recommendations) {
     chatBarEl.style.display = 'flex';
     minBtn.innerText = '−';
     panel.style.width = '90%';
+    panel.style.padding = '24px';
   }
 
   document.getElementById('close_btn').addEventListener('click', removeUI);
@@ -543,10 +595,10 @@ function injectRecommendationsUI(recommendations) {
     if (!msg) return;
 
     chatHistory.style.display = 'flex';
-    appendChatMessage('You', msg, '#ffffff', 'rgba(255,255,255,0.1)');
+    appendChatMessage('You', msg, '#333', '#f0f0f0');
     chatInput.value = '';
 
-    const loadingId = appendChatMessage('NuMi', 'Thinking...', '#aaaaaa', 'transparent');
+    const loadingId = appendChatMessage('NuMi', 'Thinking...', '#888', 'transparent');
     setTimeout(() => bodyEl.scrollTop = bodyEl.scrollHeight, 50);
 
     console.log('[NuMi Chat] Sending:', { message: msg, contextType: contextType.toLowerCase(), mood: currentMood });
@@ -562,7 +614,7 @@ function injectRecommendationsUI(recommendations) {
           console.error('[NuMi Chat] Runtime error:', chrome.runtime.lastError);
           appendChatMessage('Error', 'Extension connection lost. Try reloading.', '#ff4444', 'transparent');
         } else if (response && response.reply) {
-          appendChatMessage('NuMi', response.reply, '#fff', 'rgba(43, 43, 255, 0.2)');
+          appendChatMessage('NuMi', response.reply, '#1a4049', 'rgba(26,64,73,0.1)');
         } else if (response && response.error) {
           appendChatMessage('Error', response.error, '#ff4444', 'transparent');
         } else {
@@ -584,9 +636,9 @@ function appendChatMessage(sender, text, textColor, bgColor) {
   const div = document.createElement('div');
   const uniqueId = 'msg_' + Date.now();
   div.id = uniqueId;
-  div.style.cssText = `background: ${bgColor}; padding: 10px 14px; border-radius: 12px; line-height: 1.4; font-size: 13px; color: ${textColor}; align-self: ${sender === 'You' ? 'flex-end' : 'flex-start'}; max-width: 85%;`;
+  div.style.cssText = `background: ${bgColor}; padding: 10px 14px; border-radius: 12px; line-height: 1.4; font-size: 14px; color: ${textColor}; align-self: ${sender === 'You' ? 'flex-end' : 'flex-start'}; max-width: 85%;`;
 
-  const prefix = sender === 'NuMi' ? `<strong style="color: #00E676;">✨ NuMi:</strong> ` : '';
+  const prefix = sender === 'NuMi' ? `<strong style="color: #1a4049;">✨ NuMi:</strong> ` : '';
   div.innerHTML = `${prefix}<span>${text}</span>`;
 
   history.appendChild(div);
@@ -686,7 +738,7 @@ async function triggerInitialCuisines() {
           isCuisine: true
         }));
         currentRecommendations = formattedCuisines;
-        injectRecommendationsUI(formattedCuisines);
+        injectRecommendationsUI(formattedCuisines, response.data.overall_advice, response.user_profile);
       } else {
         removeUI();
         console.error("🍔 [NuMi] Failed or empty response from Python server.");

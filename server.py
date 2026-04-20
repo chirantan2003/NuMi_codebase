@@ -133,7 +133,7 @@ def get_cuisines():
     try:
         print(f"🍽️ Fetching initial cuisines for user: {user_id} | mood: {mood}")
         ai_recommendations = process_cuisines_with_ai(dynamic_user_profile, calendar_data, mood, weather_data)
-        return jsonify({"status": "success", "data": ai_recommendations}), 200
+        return jsonify({"status": "success", "data": ai_recommendations, "user_profile": dynamic_user_profile}), 200
     except Exception as e:
         print(f"❌ Error fetching cuisines: {e}")
         return jsonify({"error": str(e)}), 500
@@ -158,12 +158,12 @@ def save_data():
             raw_file_path = os.path.join(os.path.dirname(__file__), "feed_raw.json")
             with open(raw_file_path, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4)
             ai_recommendations = process_feed_with_ai(raw_file_path, dynamic_user_profile, calendar_data, mood, weather_data)
-            return jsonify({"status": "success", "data": ai_recommendations}), 200
+            return jsonify({"status": "success", "data": ai_recommendations, "user_profile": dynamic_user_profile}), 200
         else:
             raw_file_path = os.path.join(os.path.dirname(__file__), "menu_raw.json")
             with open(raw_file_path, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4)
             ai_recommendations = process_menu_with_ai(raw_file_path, dynamic_user_profile, calendar_data, mood, weather_data)
-            return jsonify({"status": "success", "data": ai_recommendations}), 200
+            return jsonify({"status": "success", "data": ai_recommendations, "user_profile": dynamic_user_profile}), 200
     except Exception as e:
         import traceback
         with open("error_log.txt", "w") as f: f.write(traceback.format_exc())

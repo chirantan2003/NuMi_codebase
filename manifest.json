@@ -43,5 +43,15 @@
       "https://numi-signup.vercel.app/*",
       "http://localhost:3000/*"
     ]
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "public/*.png"
+      ],
+      "matches": [
+        "*://*.doordash.com/*"
+      ]
+    }
+  ]
 }
