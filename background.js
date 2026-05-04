@@ -1,11 +1,82 @@
 // background.js — NuMi Chrome Extension Service Worker
 
-// const BACKEND_URL = 'https://numi-backend.up.railway.app';
-const BACKEND_URL = 'http://localhost:5001';
+// ============================================================
+// DYNAMIC SERVICE URL CONFIGURATION
+// URLs are fetched from Firestore on install/startup and cached
+// in chrome.storage.local. Falls back to production defaults.
+// ============================================================
+const DEFAULT_BACKEND_URL = 'https://numi-backend.up.railway.app';
+const DEFAULT_SIGNUP_URL = 'https://numi-signup.vercel.app';
+const DEFAULT_DASHBOARD_URL = 'https://numi-dashboard.vercel.app';
 
-// For local testing, use localhost. For production, use the Vercel URL.
-// const SIGNUP_URL = 'https://numi-signup.vercel.app';
-const SIGNUP_URL = 'http://localhost:3000';
+// Firebase REST API config for reading Firestore directly
+const FIREBASE_PROJECT_ID = 'numi-userdata1';
+const FIRESTORE_REST_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+
+/**
+ * Fetches service config from Firestore REST API and caches it.
+ * Falls back to hardcoded production defaults if fetch fails.
+ */
+async function syncServiceConfig() {
+  try {
+    const response = await fetch(`${FIRESTORE_REST_BASE}/numi-config/services`);
+    if (response.ok) {
+      const doc = await response.json();
+      const fields = doc.fields || {};
+      const config = {
+        numi_backend_url: fields.backendUrl?.stringValue || DEFAULT_BACKEND_URL,
+        numi_signup_url: fields.signupUrl?.stringValue || DEFAULT_SIGNUP_URL,
+        numi_dashboard_url: fields.dashboardUrl?.stringValue || DEFAULT_DASHBOARD_URL
+      };
+      await chrome.storage.local.set(config);
+      console.log('[NuMi] ✅ Service config synced from Firestore:', config);
+      return config;
+    }
+  } catch (e) {
+    console.warn('[NuMi] ⚠️ Could not fetch config from Firestore, using defaults:', e);
+  }
+  // Fallback: store defaults
+  const defaults = {
+    numi_backend_url: DEFAULT_BACKEND_URL,
+    numi_signup_url: DEFAULT_SIGNUP_URL,
+    numi_dashboard_url: DEFAULT_DASHBOARD_URL
+  };
+  await chrome.storage.local.set(defaults);
+  return defaults;
+}
+
+/**
+ * Returns cached service URLs from chrome.storage.local.
+ * If not cached yet, triggers a sync first.
+ */
+function getServiceUrls() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(
+      ['numi_backend_url', 'numi_signup_url', 'numi_dashboard_url'],
+      (result) => {
+        if (result.numi_backend_url) {
+          resolve({
+            backendUrl: result.numi_backend_url,
+            signupUrl: result.numi_signup_url || DEFAULT_SIGNUP_URL,
+            dashboardUrl: result.numi_dashboard_url || DEFAULT_DASHBOARD_URL
+          });
+        } else {
+          // Not cached yet — sync and return
+          syncServiceConfig().then((config) => {
+            resolve({
+              backendUrl: config.numi_backend_url,
+              signupUrl: config.numi_signup_url,
+              dashboardUrl: config.numi_dashboard_url
+            });
+          });
+        }
+      }
+    );
+  });
+}
+
+// Sync config on service worker startup
+syncServiceConfig();
 
 // ============================================================
 // HELPER: Get userId from chrome.storage before making requests
@@ -25,9 +96,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // --- Scraping payload (menu or feed data) ---
   if (request.action === "sendToLocalServer") {
-    getUserId().then(userId => {
+    Promise.all([getUserId(), getServiceUrls()]).then(([userId, urls]) => {
       const payload = { ...request.data, userId, mood: request.data?.mood || 'balanced' };
-      fetch(`${BACKEND_URL}/save`, {
+      fetch(`${urls.backendUrl}/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -44,9 +115,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // --- Chat messages ---
   if (request.action === "sendChatMessage") {
-    getUserId().then(userId => {
+    Promise.all([getUserId(), getServiceUrls()]).then(([userId, urls]) => {
       const payload = { ...request.data, userId, mood: request.data?.mood || 'balanced' };
-      fetch(`${BACKEND_URL}/chat`, {
+      fetch(`${urls.backendUrl}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -63,9 +134,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // --- Initial cuisine recommendations ---
   if (request.action === "getCuisines") {
-    getUserId().then(userId => {
+    Promise.all([getUserId(), getServiceUrls()]).then(([userId, urls]) => {
       const payload = { ...(request.data || {}), userId, mood: request.data?.mood || 'balanced' };
-      fetch(`${BACKEND_URL}/cuisines`, {
+      fetch(`${urls.backendUrl}/cuisines`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -84,6 +155,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "checkUserId") {
     getUserId().then(userId => {
       sendResponse({ userId });
+    });
+    return true;
+  }
+
+  // --- Get service URLs (used by content script / popup) ---
+  if (request.action === "getServiceUrls") {
+    getServiceUrls().then(urls => {
+      sendResponse(urls);
     });
     return true;
   }
@@ -120,7 +199,12 @@ chrome.action.onClicked.addListener((tab) => {
 // ON INSTALL — Open signup page for first-time users
 // ============================================================
 chrome.runtime.onInstalled.addListener((details) => {
+  // Re-sync config on install/update
+  syncServiceConfig();
+  
   if (details.reason === 'install') {
-    chrome.tabs.create({ url: `${SIGNUP_URL}?ext=${chrome.runtime.id}` });
+    getServiceUrls().then(urls => {
+      chrome.tabs.create({ url: `${urls.signupUrl}?ext=${chrome.runtime.id}` });
+    });
   }
 });

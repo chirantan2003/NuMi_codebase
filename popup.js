@@ -1,12 +1,27 @@
 // popup.js — NuMi Chrome Extension Popup Logic
 
-const SIGNUP_URL = 'https://numi-signup.vercel.app';
-
 document.addEventListener('DOMContentLoaded', () => {
   const loadingState = document.getElementById('loading-state');
   const signupState = document.getElementById('signup-state');
   const profileState = document.getElementById('profile-state');
   const resetBtn = document.getElementById('reset-btn');
+
+  // Fetch dynamic signup URL from background
+  chrome.runtime.sendMessage({ action: 'getServiceUrls' }, (urls) => {
+    const signupUrl = (urls && urls.signupUrl) || 'https://numi-signup.vercel.app';
+
+    // Update all signup links in the popup to use dynamic URL
+    const signupLinks = document.querySelectorAll('a[href*="numi-signup"], a[data-signup-link]');
+    signupLinks.forEach(link => {
+      link.href = signupUrl;
+    });
+
+    // Also set it on the signup-state button if it exists
+    const signupBtn = signupState?.querySelector('a');
+    if (signupBtn) {
+      signupBtn.href = signupUrl;
+    }
+  });
 
   // Check if user is signed up
   chrome.storage.local.get(['numi_user_id', 'numi_user_name', 'numi_user_email'], (result) => {

@@ -79,28 +79,32 @@ function checkUserId() {
 // --- Signup Prompt UI (shown when user hasn't signed up) ---
 function showSignupPrompt() {
   removeUI();
-  const panel = document.createElement('div');
-  panel.id = UI_ID;
-  panel.style.cssText = `
-    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-    width: 340px; background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    color: #fff; border-radius: 24px; padding: 24px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3); z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    border: 1px solid rgba(255,255,255,0.1); text-align: center;
-  `;
-  panel.innerHTML = `
-    <div style="font-size: 24px; margin-bottom: 8px;">🍽️</div>
-    <div style="font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 4px;">NuMi needs your profile</div>
-    <div style="font-size: 12px; color: #aaa; margin-bottom: 16px; line-height: 1.4;">Create your NuMi profile to get personalized AI food recommendations here on DoorDash.</div>
-    <a href="https://numi-signup.vercel.app" target="_blank" style="
-      display: block; background: #506634; color: #fff; padding: 10px 20px; border-radius: 12px;
-      font-weight: 700; font-size: 14px; text-decoration: none; transition: all 0.2s;
-    ">Get Started →</a>
-    <div id="__numi_dismiss" style="cursor: pointer; font-size: 11px; color: #666; margin-top: 10px; font-weight: 500;">Dismiss</div>
-  `;
-  document.body.appendChild(panel);
-  document.getElementById('__numi_dismiss').addEventListener('click', removeUI);
+  // Fetch dynamic signup URL from background script
+  chrome.runtime.sendMessage({ action: 'getServiceUrls' }, (urls) => {
+    const signupUrl = (urls && urls.signupUrl) || 'https://numi-signup.vercel.app';
+    const panel = document.createElement('div');
+    panel.id = UI_ID;
+    panel.style.cssText = `
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      width: 340px; background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      color: #fff; border-radius: 24px; padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3); z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      border: 1px solid rgba(255,255,255,0.1); text-align: center;
+    `;
+    panel.innerHTML = `
+      <div style="font-size: 24px; margin-bottom: 8px;">🍽️</div>
+      <div style="font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 4px;">NuMi needs your profile</div>
+      <div style="font-size: 12px; color: #aaa; margin-bottom: 16px; line-height: 1.4;">Create your NuMi profile to get personalized AI food recommendations here on DoorDash.</div>
+      <a href="${signupUrl}" target="_blank" style="
+        display: block; background: #506634; color: #fff; padding: 10px 20px; border-radius: 12px;
+        font-weight: 700; font-size: 14px; text-decoration: none; transition: all 0.2s;
+      ">Get Started →</a>
+      <div id="__numi_dismiss" style="cursor: pointer; font-size: 11px; color: #666; margin-top: 10px; font-weight: 500;">Dismiss</div>
+    `;
+    document.body.appendChild(panel);
+    document.getElementById('__numi_dismiss').addEventListener('click', removeUI);
+  });
 }
 
 // --- Extension Icon Listener ---

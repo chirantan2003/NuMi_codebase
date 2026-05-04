@@ -6,10 +6,24 @@ import time
 import requests as http_requests
 import firebase_admin
 from firebase_admin import credentials, firestore
+from datetime import datetime, timezone
 from analyzer import process_menu_with_ai, process_feed_with_ai, process_chat_with_ai, process_cuisines_with_ai
 
 app = Flask(__name__)
-CORS(app, origins=["*"])  # In production, restrict to your extension's origin
+
+# --- Dynamic Service URLs (env vars with production defaults) ---
+BACKEND_URL = os.environ.get('BACKEND_URL', 'https://numi-backend.up.railway.app')
+SIGNUP_URL = os.environ.get('SIGNUP_URL', 'https://numi-signup.vercel.app')
+DASHBOARD_URL = os.environ.get('DASHBOARD_URL', 'https://numi-dashboard.vercel.app')
+
+CORS(app, origins=[
+    "*",  # For extension requests (no origin header)
+    SIGNUP_URL,
+    DASHBOARD_URL,
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "chrome-extension://*"
+])
 
 # --- Firebase Initialization ---
 # Support both local (serviceAccountKey.json) and production (env var) modes
@@ -25,6 +39,23 @@ else:
 
 firebase_admin.initialize_app(cred)
 db = firestore.client()
+
+# --- Write service config to Firestore on startup ---
+def _sync_service_config():
+    """Writes current service URLs to Firestore so all clients can discover them."""
+    try:
+        config_ref = db.collection('numi-config').document('services')
+        config_ref.set({
+            'backendUrl': BACKEND_URL,
+            'signupUrl': SIGNUP_URL,
+            'dashboardUrl': DASHBOARD_URL,
+            'updatedAt': datetime.now(timezone.utc).isoformat()
+        }, merge=True)
+        print(f"✅ Service config synced to Firestore: backend={BACKEND_URL}, signup={SIGNUP_URL}, dashboard={DASHBOARD_URL}")
+    except Exception as e:
+        print(f"⚠️ Failed to sync service config to Firestore: {e}")
+
+_sync_service_config()
 
 # ============================================================
 # HELPER: Get user profile from Firestore
@@ -115,6 +146,19 @@ def get_weather():
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "ok", "service": "numi-backend"}), 200
+
+
+# ============================================================
+# SERVICE CONFIG ENDPOINT
+# ============================================================
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Returns dynamic service URLs for all NuMi services."""
+    return jsonify({
+        "backendUrl": BACKEND_URL,
+        "signupUrl": SIGNUP_URL,
+        "dashboardUrl": DASHBOARD_URL
+    }), 200
 
 
 # ============================================================

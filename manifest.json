@@ -8,7 +8,9 @@
     "storage"
   ],
   "host_permissions": [
-    "*://*.doordash.com/*"
+    "*://*.doordash.com/*",
+    "https://numi-backend.up.railway.app/*",
+    "https://firestore.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -41,7 +43,9 @@
   "externally_connectable": {
     "matches": [
       "https://numi-signup.vercel.app/*",
-      "http://localhost:3000/*"
+      "https://numi-dashboard.vercel.app/*",
+      "http://localhost:3000/*",
+      "http://localhost:3001/*"
     ]
   },
   "web_accessible_resources": [
