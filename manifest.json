@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NuMi — Smart Food Assistant",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "AI-powered food recommendations on DoorDash, personalized to your dietary needs, health goals, and schedule.",
   "permissions": [
     "activeTab",

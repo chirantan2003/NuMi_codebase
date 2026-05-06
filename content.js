@@ -82,6 +82,7 @@ function showSignupPrompt() {
   // Fetch dynamic signup URL from background script
   chrome.runtime.sendMessage({ action: 'getServiceUrls' }, (urls) => {
     const signupUrl = (urls && urls.signupUrl) || 'https://numi-signup.vercel.app';
+    const fullSignupUrl = signupUrl + "?ext=" + chrome.runtime.id;
     const panel = document.createElement('div');
     panel.id = UI_ID;
     panel.style.cssText = `
@@ -96,7 +97,7 @@ function showSignupPrompt() {
       <div style="font-size: 24px; margin-bottom: 8px;">🍽️</div>
       <div style="font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 4px;">NuMi needs your profile</div>
       <div style="font-size: 12px; color: #aaa; margin-bottom: 16px; line-height: 1.4;">Create your NuMi profile to get personalized AI food recommendations here on DoorDash.</div>
-      <a href="${signupUrl}" target="_blank" style="
+      <a href="${fullSignupUrl}" target="_blank" style="
         display: block; background: #506634; color: #fff; padding: 10px 20px; border-radius: 12px;
         font-weight: 700; font-size: 14px; text-decoration: none; transition: all 0.2s;
       ">Get Started →</a>

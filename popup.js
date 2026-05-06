@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Fetch dynamic signup URL from background
   chrome.runtime.sendMessage({ action: 'getServiceUrls' }, (urls) => {
-    const signupUrl = (urls && urls.signupUrl) || 'https://numi-signup.vercel.app';
+    const baseUrl = (urls && urls.signupUrl) || 'https://numi-signup.vercel.app';
+    const signupUrl = baseUrl + "?ext=" + chrome.runtime.id;
 
     // Update all signup links in the popup to use dynamic URL
     const signupLinks = document.querySelectorAll('a[href*="numi-signup"], a[data-signup-link]');
